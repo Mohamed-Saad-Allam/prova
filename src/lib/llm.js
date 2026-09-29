@@ -70,45 +70,69 @@ async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxO
   if (!activeAI) return null;
   if (Date.now() < geminiQuotaBlockedUntil) return null;
 
-  // Active verified Gemini models in priority order
+  // Real verified Gemini models in priority order (fastest/cheapest first)
   const candidateModels = [
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash',
-    'gemini-3.8-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
     'gemini-2.5-flash',
   ];
 
   for (const modelName of candidateModels) {
-    try {
-      const genConfig = {
-        maxOutputTokens: maxOutputTokens,
-        temperature: 0.3,
-      };
-      if (responseJson) {
-        genConfig.responseMimeType = 'application/json';
+    // Attempt each model up to 2 times to handle transient 503 overload errors
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const genConfig = {
+          maxOutputTokens: maxOutputTokens,
+          temperature: 0.3,
+        };
+        if (responseJson) {
+          genConfig.responseMimeType = 'application/json';
+        }
+
+        const model = activeAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemInstruction || undefined,
+          generationConfig: genConfig,
+        });
+
+        const genPromise = model.generateContent(prompt).then((res) => {
+          const txt = res.response?.text?.()?.trim();
+          return txt || null;
+        });
+
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
+
+        const text = await Promise.race([genPromise, timeoutPromise]);
+        if (text && text.length > 2) return text;
+
+        // Empty response — no point retrying same model, move to next
+        break;
+      } catch (err) {
+        const errMsg = err?.message || String(err);
+        const status = err?.status || err?.httpStatus;
+
+        // 429 / quota exceeded — circuit break for 5 minutes
+        if (status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+          geminiQuotaBlockedUntil = Date.now() + 5 * 60 * 1000;
+          return null;
+        }
+
+        // 503 / overloaded — wait briefly then retry this model once, then try next
+        if (status === 503 || errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('UNAVAILABLE')) {
+          if (attempt === 0) {
+            // Short backoff before retry: 800ms
+            await new Promise((r) => setTimeout(r, 800));
+            continue; // retry same model
+          }
+          // Second attempt also failed, move to next model
+          break;
+        }
+
+        // Other errors — move to next model immediately
+        break;
       }
-
-      const model = activeAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemInstruction || undefined,
-        generationConfig: genConfig,
-      });
-
-      const genPromise = model.generateContent(prompt).then((res) => {
-        const txt = res.response?.text?.()?.trim();
-        return txt || null;
-      });
-
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
-
-      const text = await Promise.race([genPromise, timeoutPromise]);
-      if (text && text.length > 2) return text;
-    } catch (err) {
-      if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('Quota exceeded')) {
-        geminiQuotaBlockedUntil = Date.now() + 5 * 60 * 1000;
-        return null;
-      }
-      continue;
     }
   }
 

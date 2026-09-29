@@ -321,12 +321,35 @@ export default function App() {
       setUser(null);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+
+    // 1. Immediately restore session from localStorage (works across all tabs)
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) console.warn('Auth getSession error:', error);
+      setUser(data?.session?.user ?? null);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+
+    // 2. Listen for auth state changes across this tab AND other tabs
+    //    (storage events from other tabs will trigger SIGNED_IN / SIGNED_OUT here)
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      switch (event) {
+        case 'SIGNED_IN':
+        case 'TOKEN_REFRESHED':
+        case 'USER_UPDATED':
+          setUser(session?.user ?? null);
+          break;
+        case 'SIGNED_OUT':
+          setUser(null);
+          break;
+        case 'INITIAL_SESSION':
+          // Fired on mount with the persisted session — keeps new tabs in sync
+          setUser(session?.user ?? null);
+          break;
+        default:
+          if (session?.user) setUser(session.user);
+          else if (!session) setUser(null);
+      }
     });
+
     return () => sub.subscription.unsubscribe();
   }, []);
 
