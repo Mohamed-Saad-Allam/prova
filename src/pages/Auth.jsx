@@ -222,37 +222,6 @@ export default function Auth() {
         position: 'relative',
       }}
     >
-      {/* Brand Back Link */}
-      <Link
-        to="/"
-        style={{
-          position: 'absolute',
-          top: '1.5rem',
-          insetInlineStart: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          textDecoration: 'none',
-        }}
-      >
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 'var(--radius-sm)',
-            background: 'linear-gradient(135deg, var(--c-coral), var(--c-coral-dark))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 900,
-            fontSize: '0.95rem',
-          }}
-        >
-          P
-        </div>
-        <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1rem' }}>Prova</span>
-      </Link>
 
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}

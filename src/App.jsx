@@ -404,22 +404,15 @@ export default function App() {
           alignItems: 'center',
           gap: '1rem',
         }}>
-          <div
+          <img
+            src="/logo.svg"
+            alt="Prova"
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, var(--c-coral), var(--c-coral-dark))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 900,
-              fontSize: '1.2rem',
+              height: '36px',
+              width: 'auto',
+              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.06))',
             }}
-          >
-            P
-          </div>
+          />
           <div style={{
             width: 28, height: 28,
             border: '2.5px solid var(--border-subtle)',
