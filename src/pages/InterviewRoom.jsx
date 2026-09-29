@@ -297,7 +297,7 @@ export default function InterviewRoom({ user }) {
         spokenTextRef.current = clean;
         setSubtitle(clean);
 
-        if (clean.length >= 2) {
+        if (clean.length >= 3) {
           setTurnState('user_speaking');
           turnStateRef.current = 'user_speaking';
         }
@@ -305,7 +305,8 @@ export default function InterviewRoom({ user }) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        const SILENCE_MS = 600;
+        // Natural conversational pause threshold (1.4s) so user is not cut off mid-sentence
+        const SILENCE_MS = 1400;
         let remaining = SILENCE_MS;
         setAutoSendCountdown(remaining);
 
@@ -318,7 +319,7 @@ export default function InterviewRoom({ user }) {
         silenceTimerRef.current = setTimeout(() => {
           clearInterval(countdownIntervalRef.current);
           setAutoSendCountdown(0);
-          if (spokenTextRef.current && spokenTextRef.current.length >= 2 && !isSubmittingRef.current && !isTerminatedRef.current) {
+          if (spokenTextRef.current && spokenTextRef.current.length >= 3 && !isSubmittingRef.current && !isTerminatedRef.current) {
             submitUserTurnRef.current?.(spokenTextRef.current);
           }
         }, SILENCE_MS);
@@ -339,7 +340,7 @@ export default function InterviewRoom({ user }) {
             if (!isTerminatedRef.current && !micMutedRef.current && !isSpeakingRef.current) {
               startListeningSession();
             }
-          }, 200);
+          }, 300);
         }
       },
     });
@@ -352,11 +353,9 @@ export default function InterviewRoom({ user }) {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-      // Instant conversational responsiveness: show text and active speaking frame immediately
-      setTurnState('ai_speaking');
-      turnStateRef.current = 'ai_speaking';
-      setSubtitle(text);
-      detectEmotion(text);
+      // Keep in thinking state while audio stream is being generated and loaded
+      setTurnState('thinking');
+      turnStateRef.current = 'thinking';
       setIsSpeaking(false);
       isSpeakingRef.current = false;
 
@@ -366,20 +365,22 @@ export default function InterviewRoom({ user }) {
       const revealAiMessage = () => {
         if (!messageRevealed) {
           messageRevealed = true;
+          setTurnState('ai_speaking');
+          turnStateRef.current = 'ai_speaking';
+          setSubtitle(text);
+          detectEmotion(text);
           addMessage('assistant', text);
           persistTurn('assistant', text);
         }
       };
-
-      // Add to chat history without waiting
-      revealAiMessage();
 
       await speak({
         text,
         lang: isRtl ? 'ar-EG' : 'en-US',
         voice,
         onStart: () => {
-          // Lip-sync starts strictly when real audio wave energy begins
+          // Perfectly synchronized: audio and text appear simultaneously on sound wave start
+          revealAiMessage();
           setIsSpeaking(true);
           isSpeakingRef.current = true;
         },
@@ -388,23 +389,28 @@ export default function InterviewRoom({ user }) {
           isSpeakingRef.current = false;
           setEmotion('neutral');
           setTimeout(() => {
-            setTurnState('listening');
-            turnStateRef.current = 'listening';
-            setSubtitle(isRtl ? '🎙️ المايك مفتوح — تفضل بالإجابة' : '🎙️ Microphone open — Go ahead');
-            if (!micMutedRef.current) {
-              startListeningSession();
+            if (!isTerminatedRef.current) {
+              setTurnState('listening');
+              turnStateRef.current = 'listening';
+              setSubtitle(isRtl ? '🎙️ المايك مفتوح — تفضل بالإجابة' : '🎙️ Microphone open — Go ahead');
+              if (!micMutedRef.current) {
+                startListeningSession();
+              }
             }
           }, 250);
         },
         onError: () => {
+          revealAiMessage();
           setIsSpeaking(false);
           isSpeakingRef.current = false;
           setEmotion('neutral');
           setTimeout(() => {
-            setTurnState('listening');
-            turnStateRef.current = 'listening';
-            if (!micMutedRef.current) startListeningSession();
-          }, 300);
+            if (!isTerminatedRef.current) {
+              setTurnState('listening');
+              turnStateRef.current = 'listening';
+              if (!micMutedRef.current) startListeningSession();
+            }
+          }, 350);
         },
       });
     },
@@ -445,7 +451,7 @@ export default function InterviewRoom({ user }) {
             if (!micMutedRef.current) startListeningSession();
           });
         }
-      }, 2500);
+      }, 14000);
 
       try {
         const freshHistory = useInterviewStore.getState().conversationHistory || [];

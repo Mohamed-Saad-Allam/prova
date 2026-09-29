@@ -28,68 +28,85 @@ export function startListening({
 
   isExplicitlyStopped = false;
 
-  try {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function initRecognition() {
+    if (isExplicitlyStopped) return null;
+
     if (recognitionInstance) {
       try {
+        recognitionInstance.onresult = null;
+        recognitionInstance.onerror = null;
+        recognitionInstance.onend = null;
         recognitionInstance.abort();
       } catch (_e) {}
+      recognitionInstance = null;
     }
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionInstance = new SR();
-    recognitionInstance.lang = lang;
-    recognitionInstance.interimResults = true;
-    recognitionInstance.maxAlternatives = 1;
-    recognitionInstance.continuous = continuous;
+    try {
+      const rec = new SR();
+      rec.lang = lang;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.continuous = continuous;
 
-    let accumulatedFinalText = '';
+      let accumulatedFinalText = '';
 
-    recognitionInstance.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const item = event.results[i];
-        if (item.isFinal) {
-          accumulatedFinalText += (accumulatedFinalText ? ' ' : '') + item[0].transcript.trim();
-        } else {
-          interim += item[0].transcript;
+      rec.onresult = (event) => {
+        if (isExplicitlyStopped) return;
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            accumulatedFinalText += (accumulatedFinalText ? ' ' : '') + item[0].transcript.trim();
+          } else {
+            interim += item[0].transcript;
+          }
         }
-      }
 
-      const fullCurrentText = (
-        accumulatedFinalText + (interim ? (accumulatedFinalText ? ' ' : '') + interim : '')
-      ).trim();
+        const fullCurrentText = (
+          accumulatedFinalText + (interim ? (accumulatedFinalText ? ' ' : '') + interim : '')
+        ).trim();
 
-      if (fullCurrentText) {
-        onTranscriptUpdate?.({
-          text: fullCurrentText,
-          hasFinal: !!accumulatedFinalText,
-        });
-      }
-    };
+        if (fullCurrentText) {
+          onTranscriptUpdate?.({
+            text: fullCurrentText,
+            hasFinal: !!accumulatedFinalText,
+          });
+        }
+      };
 
-    recognitionInstance.onerror = (event) => {
-      if (event.error === 'no-speech') {
-        return; // Normal pause in conversation
-      }
-      console.warn('[Speech] recognition error:', event.error);
-      onError?.(event.error);
-    };
-
-    recognitionInstance.onend = () => {
-      if (continuous && !isExplicitlyStopped && recognitionInstance) {
-        try {
-          recognitionInstance.start();
+      rec.onerror = (event) => {
+        if (event.error === 'no-speech' || event.error === 'aborted') {
           return;
-        } catch (_e) {}
-      }
-      onEnd?.();
-    };
+        }
+        console.warn('[Speech] recognition error:', event.error);
+        onError?.(event.error);
+      };
 
-    recognitionInstance.start();
-  } catch (e) {
-    console.warn('[Speech] start exception:', e);
-    onError?.(e.message || 'start_failed');
+      rec.onend = () => {
+        if (!isExplicitlyStopped && continuous) {
+          // Restart clean instance with a tiny breather so browser mic handle doesn't conflict
+          setTimeout(() => {
+            if (!isExplicitlyStopped) {
+              recognitionInstance = initRecognition();
+            }
+          }, 60);
+          return;
+        }
+        onEnd?.();
+      };
+
+      rec.start();
+      return rec;
+    } catch (e) {
+      console.warn('[Speech] start exception:', e);
+      onError?.(e.message || 'start_failed');
+      return null;
+    }
   }
+
+  recognitionInstance = initRecognition();
 }
 
 export function stopListening() {
