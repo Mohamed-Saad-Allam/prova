@@ -211,6 +211,8 @@ export default function InterviewRoom({ user }) {
   const silenceTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const watchdogTimerRef = useRef(null);
+  const recoveryTimerRef = useRef(null);
+  const isTerminatedRef = useRef(false);
   const micMutedRef = useRef(false);
   const turnStateRef = useRef('listening');
   const spokenTextRef = useRef('');
@@ -274,7 +276,7 @@ export default function InterviewRoom({ user }) {
 
   // ── Candidate Voice Recognition ───────────────────────────────────────────
   const startListeningSession = useCallback(() => {
-    if (micMutedRef.current || isSpeakingRef.current) return;
+    if (isTerminatedRef.current || micMutedRef.current || isSpeakingRef.current) return;
 
     setSpokenText('');
     spokenTextRef.current = '';
@@ -286,7 +288,7 @@ export default function InterviewRoom({ user }) {
       lang: isRtl ? 'ar-EG' : 'en-US',
       continuous: true,
       onTranscriptUpdate: ({ text }) => {
-        if (isSpeakingRef.current || turnStateRef.current === 'ai_speaking') return;
+        if (isTerminatedRef.current || isSpeakingRef.current || turnStateRef.current === 'ai_speaking') return;
 
         const clean = text.trim();
         if (!clean) return;
@@ -316,7 +318,7 @@ export default function InterviewRoom({ user }) {
         silenceTimerRef.current = setTimeout(() => {
           clearInterval(countdownIntervalRef.current);
           setAutoSendCountdown(0);
-          if (spokenTextRef.current && spokenTextRef.current.length >= 2 && !isSubmittingRef.current) {
+          if (spokenTextRef.current && spokenTextRef.current.length >= 2 && !isSubmittingRef.current && !isTerminatedRef.current) {
             submitUserTurnRef.current?.(spokenTextRef.current);
           }
         }, SILENCE_MS);
@@ -325,14 +327,16 @@ export default function InterviewRoom({ user }) {
         console.warn('[Speech] Notice:', err);
       },
       onEnd: () => {
+        if (isTerminatedRef.current) return;
         if (
           !micMutedRef.current &&
           !isSpeakingRef.current &&
           turnStateRef.current !== 'thinking' &&
           turnStateRef.current !== 'ai_speaking'
         ) {
-          setTimeout(() => {
-            if (!micMutedRef.current && !isSpeakingRef.current) {
+          if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
+          recoveryTimerRef.current = setTimeout(() => {
+            if (!isTerminatedRef.current && !micMutedRef.current && !isSpeakingRef.current) {
               startListeningSession();
             }
           }, 200);
@@ -550,13 +554,28 @@ export default function InterviewRoom({ user }) {
     submitUserTurn(txt);
   }, [textInput, submitUserTurn]);
 
-  const handleFinish = useCallback(async () => {
+  const fullCleanup = useCallback(() => {
+    isTerminatedRef.current = true;
+    if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     stopSpeaking();
     stopListening();
     stopUserMicLevel();
     if (cameraStreamRef.current) {
-      cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+      try {
+        cameraStreamRef.current.getTracks().forEach((t) => {
+          t.stop();
+          t.enabled = false;
+        });
+      } catch (_) {}
+      cameraStreamRef.current = null;
     }
+  }, []);
+
+  const handleFinish = useCallback(async () => {
+    fullCleanup();
 
     const iid = interviewIdRef.current || interviewId;
     if (!iid) {
@@ -573,26 +592,23 @@ export default function InterviewRoom({ user }) {
     }
     toast.dismiss('rep');
     navigate(`/report/${iid}`);
-  }, [interviewId, conversationHistory, isRtl, navigate]);
+  }, [fullCleanup, interviewId, conversationHistory, isRtl, navigate]);
 
   // ── Initialization ────────────────────────────────────────────────────────
   useEffect(() => {
     if (initDoneRef.current || !user) return;
     initDoneRef.current = true;
+    isTerminatedRef.current = false;
 
     const unsubAiLevel = subscribeAudioLevel((lvl) => setAiAudioLevel(lvl));
     startUserMicLevel((lvl) => {
-      setUserAudioLevel(micMutedRef.current ? 0 : lvl);
+      if (!isTerminatedRef.current) {
+        setUserAudioLevel(micMutedRef.current ? 0 : lvl);
+      }
     });
 
     const teardown = () => {
-      stopSpeaking();
-      stopListening();
-      stopUserMicLevel();
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
-      if (cameraStreamRef.current) cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+      fullCleanup();
       unsubAiLevel?.();
     };
 
@@ -606,7 +622,7 @@ export default function InterviewRoom({ user }) {
       window.removeEventListener('beforeunload', teardown);
       teardown();
     };
-  }, [user]);
+  }, [user, fullCleanup]);
 
   async function initialize() {
     try {

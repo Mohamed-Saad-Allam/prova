@@ -96,6 +96,12 @@ export function stopListening() {
   isExplicitlyStopped = true;
   if (recognitionInstance) {
     try {
+      recognitionInstance.onresult = null;
+      recognitionInstance.onerror = null;
+      recognitionInstance.onend = null;
+      recognitionInstance.abort();
+    } catch (_e) {}
+    try {
       recognitionInstance.stop();
     } catch (_e) {}
     recognitionInstance = null;
@@ -159,13 +165,18 @@ export function stopUserMicLevel() {
     try { userMicAnalyser.disconnect(); } catch (_) {}
     userMicAnalyser = null;
   }
+  if (userMicStream) {
+    try {
+      userMicStream.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+      });
+    } catch (_) {}
+    userMicStream = null;
+  }
   if (userMicCtx) {
     try { userMicCtx.close(); } catch (_) {}
     userMicCtx = null;
-  }
-  if (userMicStream) {
-    try { userMicStream.getTracks().forEach(t => t.stop()); } catch (_) {}
-    userMicStream = null;
   }
 }
 
@@ -305,32 +316,21 @@ function pcm16ToWavBlob(base64, sampleRate = 24000) {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-let geminiTtsBlockedUntil = (() => {
-  try {
-    const val = localStorage.getItem('prova_gemini_tts_blocked_until');
-    return val ? parseInt(val, 10) : (Date.now() + 30 * 60 * 1000); // Default to Edge TTS for instant real-time speed
-  } catch (_e) {
-    return Date.now() + 30 * 60 * 1000;
-  }
-})();
-
 async function fetchGeminiNativeTtsBlob(cleanText, voice) {
-  if (Date.now() < geminiTtsBlockedUntil) {
-    return null;
-  }
-
   const apiKey =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
-    (typeof process !== 'undefined' && (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY));
+    (typeof localStorage !== 'undefined' && localStorage.getItem('prova_gemini_api_key')) ||
+    (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_GEMINI_API_KEY || import.meta.env?.GEMINI_API_KEY)) ||
+    (typeof process !== 'undefined' && (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) ||
+    '';
 
-  if (!apiKey) return null;
+  if (!apiKey || apiKey.length < 10) return null;
 
   const geminiVoice =
     voice === 'Aoede' || voice === 'Kore' || voice?.toLowerCase().includes('sara') || voice?.toLowerCase().includes('salma')
       ? 'Aoede'
       : 'Puck';
 
-  const models = ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview'];
+  const models = ['gemini-2.5-flash-preview-tts', 'gemini-2.0-flash'];
 
   for (const m of models) {
     try {
@@ -349,14 +349,8 @@ async function fetchGeminiNativeTtsBlob(cleanText, voice) {
             },
           },
         }),
-        signal: AbortSignal.timeout(900),
+        signal: AbortSignal.timeout(8000),
       });
-
-      if (res.status === 429) {
-        geminiTtsBlockedUntil = Date.now() + 30 * 60 * 1000;
-        try { localStorage.setItem('prova_gemini_tts_blocked_until', geminiTtsBlockedUntil.toString()); } catch (_) {}
-        return null;
-      }
 
       if (!res.ok) continue;
       const data = await res.json();
@@ -373,7 +367,7 @@ async function fetchGeminiNativeTtsBlob(cleanText, voice) {
 }
 
 /**
- * Speak full response text using Google Gemini Native Voice
+ * Speak full response text using Next-Gen AI Native Voice (Cartesia Sonic 3.6 / Google Gemini)
  */
 export async function speak({ text, lang = 'ar-EG', voice, onStart, onEnd, onError }) {
   stopSpeaking();
@@ -392,61 +386,46 @@ export async function speak({ text, lang = 'ar-EG', voice, onStart, onEnd, onErr
       (typeof import.meta !== 'undefined' && (import.meta.env?.CARTESIA_API_KEY || import.meta.env?.VITE_CARTESIA_API_KEY)) ||
       '';
 
+    const geminiKey =
+      (typeof localStorage !== 'undefined' && localStorage.getItem('prova_gemini_api_key')) ||
+      (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_GEMINI_API_KEY || import.meta.env?.GEMINI_API_KEY)) ||
+      '';
+
     let audioBlob = null;
 
-    // 1. If Cartesia Sonic key is configured (Priority 1: sub-150ms instant interview voice)
-    if (cartesiaKey && cartesiaKey.length > 10) {
-      try {
-        const response = await fetch('/api/text-to-speech', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Cartesia-Key': cartesiaKey,
-          },
-          body: JSON.stringify({
-            text: cleanText,
-            lang,
-            voice,
-            engine: 'cartesia',
-            cartesiaApiKey: cartesiaKey,
-          }),
-          signal: abortController.signal,
-        });
-        if (response.ok) {
-          audioBlob = await response.blob();
-        }
-      } catch (_e) {}
-    }
+    // 1. Priority 1: Cartesia Sonic 3.6 (Sub-150ms ultra-realistic conversational interview voice)
+    try {
+      const response = await fetch('/api/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(cartesiaKey ? { 'X-Cartesia-Key': cartesiaKey } : {}),
+          ...(geminiKey ? { 'X-Gemini-Key': geminiKey } : {}),
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          lang,
+          voice,
+          engine: 'cartesia',
+          cartesiaApiKey: cartesiaKey,
+          geminiApiKey: geminiKey,
+        }),
+        signal: abortController.signal,
+      });
+      if (response.ok) {
+        audioBlob = await response.blob();
+      }
+    } catch (_e) {}
 
-    // 2. Fallback to Gemini Native Audio
-    if (!audioBlob) {
+    // 2. Priority 2: Direct Google Gemini Native Voice (24kHz natural human audio)
+    if (!audioBlob || audioBlob.size < 500) {
       try {
         audioBlob = await fetchGeminiNativeTtsBlob(cleanText, voice);
       } catch (_e) {}
     }
 
-    // 3. Fallback to Server Neural Voice (Edge)
-    if (!audioBlob) {
-      try {
-        const response = await fetch('/api/text-to-speech', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: cleanText,
-            lang,
-            voice,
-            engine: 'edge',
-          }),
-          signal: abortController.signal,
-        });
-        if (response.ok) {
-          audioBlob = await response.blob();
-        }
-      } catch (_e) {}
-    }
-
     if (!audioBlob || audioBlob.size === 0) {
-      throw new Error('Received empty audio payload from TTS engine');
+      throw new Error('AI Voice engine produced empty payload. Check API keys.');
     }
 
     activeAudioUrl = URL.createObjectURL(audioBlob);

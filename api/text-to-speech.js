@@ -1,5 +1,3 @@
-import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
-
 // In-memory cache for fast repeated responses
 const audioCache = new Map();
 
@@ -74,7 +72,7 @@ async function synthesizeWithCartesia(cleanText, lang = 'ar-EG', voice, customAp
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model_id: cartesiaLang === 'ar' ? 'sonic-multilingual' : 'sonic-3.6',
+        model_id: 'sonic-3.6',
         transcript: cleanText,
         voice: {
           mode: 'id',
@@ -87,7 +85,7 @@ async function synthesizeWithCartesia(cleanText, lang = 'ar-EG', voice, customAp
         },
         language: cartesiaLang,
       }),
-      signal: AbortSignal.timeout(3500),
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!response.ok) {
@@ -103,8 +101,10 @@ async function synthesizeWithCartesia(cleanText, lang = 'ar-EG', voice, customAp
     return null;
   }
 }
-async function synthesizeWithGemini(cleanText, voiceName) {
+
+async function synthesizeWithGemini(cleanText, voiceName, customGeminiKey) {
   const apiKey =
+    customGeminiKey ||
     process.env.VITE_GEMINI_API_KEY ||
     process.env.GEMINI_API_KEY ||
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY);
@@ -113,8 +113,7 @@ async function synthesizeWithGemini(cleanText, voiceName) {
 
   const candidateModels = [
     'gemini-2.5-flash-preview-tts',
-    'gemini-3.1-flash-tts-preview',
-    'gemini-3.8-flash-lite-tts',
+    'gemini-2.0-flash',
   ];
 
   const geminiVoice =
@@ -139,10 +138,10 @@ async function synthesizeWithGemini(cleanText, voiceName) {
             },
           },
         }),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (res.status === 429) {
-        // Quota exceeded for this project, stop looping immediately
         return null;
       }
       if (!res.ok) continue;
@@ -159,64 +158,10 @@ async function synthesizeWithGemini(cleanText, voiceName) {
   return null;
 }
 
-const edgeTtsPool = {};
-
-async function getOrCreateEdgeTts(voiceName) {
-  if (!edgeTtsPool[voiceName]) {
-    const tts = new MsEdgeTTS();
-    await tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-    edgeTtsPool[voiceName] = tts;
-  }
-  return edgeTtsPool[voiceName];
-}
-
 /**
- * Fallback synthesizer using Microsoft Edge Neural Voice (Ultra-fast cached stream)
+ * Master Synthesizer: Cartesia Sonic First, Google Gemini Native Voice Second
  */
-async function synthesizeWithEdge(cleanText, lang = 'ar-EG', voice) {
-  const isFemale = voice === 'Aoede' || voice?.toLowerCase().includes('salma') || voice?.toLowerCase().includes('sara');
-  const chosenVoice = isFemale ? 'ar-EG-SalmaNeural' : 'ar-EG-ShakirNeural';
-
-  try {
-    const tts = await getOrCreateEdgeTts(chosenVoice);
-    const { audioStream } = tts.toStream(cleanText);
-
-    return await new Promise((resolve, reject) => {
-      const chunks = [];
-      const timeout = setTimeout(() => {
-        delete edgeTtsPool[chosenVoice];
-        reject(new Error('TTS timeout'));
-      }, 7000);
-
-      audioStream.on('data', (chunk) => chunks.push(chunk));
-      audioStream.on('end', () => {
-        clearTimeout(timeout);
-        resolve(Buffer.concat(chunks));
-      });
-      audioStream.on('error', (err) => {
-        clearTimeout(timeout);
-        delete edgeTtsPool[chosenVoice];
-        reject(err);
-      });
-    });
-  } catch (_e) {
-    delete edgeTtsPool[chosenVoice];
-    const freshTts = new MsEdgeTTS();
-    await freshTts.setMetadata(chosenVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-    const { audioStream } = freshTts.toStream(cleanText);
-    return new Promise((resolve, reject) => {
-      const chunks = [];
-      audioStream.on('data', (chunk) => chunks.push(chunk));
-      audioStream.on('end', () => resolve(Buffer.concat(chunks)));
-      audioStream.on('error', reject);
-    });
-  }
-}
-
-/**
- * Master Synthesizer: Cartesia Sonic First, Edge Neural Fallback
- */
-export async function synthesizeSpeech({ text, lang = 'ar-EG', voice, engine, cartesiaApiKey }) {
+export async function synthesizeSpeech({ text, lang = 'ar-EG', voice, engine, cartesiaApiKey, geminiApiKey }) {
   const clean = sanitizeTextForTTS(text);
   if (!clean) throw new Error('Empty text provided for synthesis');
 
@@ -225,7 +170,7 @@ export async function synthesizeSpeech({ text, lang = 'ar-EG', voice, engine, ca
     return audioCache.get(cacheKey);
   }
 
-  // 1. Try Cartesia Sonic First (Sub-150ms real-time conversational voice)
+  // 1. Try Cartesia Sonic First (Hyper-realistic sub-150ms real-time conversational voice)
   try {
     const cartesiaBuffer = await synthesizeWithCartesia(clean, lang, voice, cartesiaApiKey);
     if (cartesiaBuffer && cartesiaBuffer.length > 500) {
@@ -234,14 +179,22 @@ export async function synthesizeSpeech({ text, lang = 'ar-EG', voice, engine, ca
       return cartesiaBuffer;
     }
   } catch (cartesiaErr) {
-    console.warn('[TTS] Cartesia Sonic error, falling back:', cartesiaErr.message);
+    console.warn('[TTS] Cartesia Sonic error, falling back to Gemini:', cartesiaErr.message);
   }
 
-  // 2. Direct Edge Neural Synthesis Fallback
-  const edgeBuffer = await synthesizeWithEdge(clean, lang, voice);
-  if (audioCache.size > 200) audioCache.delete(audioCache.keys().next().value);
-  audioCache.set(cacheKey, edgeBuffer);
-  return edgeBuffer;
+  // 2. Try Google Gemini Native Audio Output
+  try {
+    const geminiBuffer = await synthesizeWithGemini(clean, voice, geminiApiKey);
+    if (geminiBuffer && geminiBuffer.length > 500) {
+      if (audioCache.size > 200) audioCache.delete(audioCache.keys().next().value);
+      audioCache.set(cacheKey, geminiBuffer);
+      return geminiBuffer;
+    }
+  } catch (geminiErr) {
+    console.warn('[TTS] Gemini Native Voice error:', geminiErr.message);
+  }
+
+  throw new Error('Both Cartesia Sonic and Google Gemini speech engines failed to produce audio.');
 }
 
 /**
@@ -265,12 +218,13 @@ export default async function handler(req, res) {
     const voice = body?.voice || req.query?.voice;
     const engine = body?.engine || req.query?.engine;
     const cartesiaApiKey = body?.cartesiaApiKey || req.headers?.['x-cartesia-key'] || req.query?.cartesiaApiKey;
+    const geminiApiKey = body?.geminiApiKey || req.headers?.['x-gemini-key'] || req.query?.geminiApiKey;
 
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Text parameter is required' });
     }
 
-    const audioBuffer = await synthesizeSpeech({ text, lang, voice, engine, cartesiaApiKey });
+    const audioBuffer = await synthesizeSpeech({ text, lang, voice, engine, cartesiaApiKey, geminiApiKey });
     const isWav = Buffer.isBuffer(audioBuffer) && audioBuffer.slice(0, 4).toString('ascii') === 'RIFF';
 
     res.setHeader('Content-Type', isWav ? 'audio/wav' : 'audio/mpeg');
