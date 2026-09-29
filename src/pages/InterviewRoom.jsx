@@ -297,7 +297,11 @@ export default function InterviewRoom({ user }) {
         spokenTextRef.current = clean;
         setSubtitle(clean);
 
-        if (clean.length >= 3) {
+        // Visual feedback for user speaking
+        setUserAudioLevel(0.65);
+
+        const words = clean.split(/\s+/).filter(Boolean);
+        if (clean.length >= 2) {
           setTurnState('user_speaking');
           turnStateRef.current = 'user_speaking';
         }
@@ -305,29 +309,40 @@ export default function InterviewRoom({ user }) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        // Natural conversational pause threshold (1.4s) so user is not cut off mid-sentence
-        const SILENCE_MS = 1400;
-        let remaining = SILENCE_MS;
-        setAutoSendCountdown(remaining);
+        // Only start auto-send countdown if user has spoken a real meaningful thought (at least 2 words & 6 characters)
+        if (words.length >= 2 && clean.length >= 6) {
+          const SILENCE_MS = 2600; // 2.6s comfortable pause threshold
+          let remaining = SILENCE_MS;
+          setAutoSendCountdown(remaining);
 
-        countdownIntervalRef.current = setInterval(() => {
-          remaining -= 50;
-          setAutoSendCountdown(Math.max(0, remaining));
-          if (remaining <= 0) clearInterval(countdownIntervalRef.current);
-        }, 50);
+          countdownIntervalRef.current = setInterval(() => {
+            remaining -= 50;
+            setAutoSendCountdown(Math.max(0, remaining));
+            if (remaining <= 0) clearInterval(countdownIntervalRef.current);
+          }, 50);
 
-        silenceTimerRef.current = setTimeout(() => {
-          clearInterval(countdownIntervalRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            clearInterval(countdownIntervalRef.current);
+            setAutoSendCountdown(0);
+            if (
+              spokenTextRef.current &&
+              spokenTextRef.current.trim().length >= 6 &&
+              !isSubmittingRef.current &&
+              !isTerminatedRef.current
+            ) {
+              submitUserTurnRef.current?.(spokenTextRef.current);
+            }
+          }, SILENCE_MS);
+        } else {
+          // If only 1 word, do NOT auto-submit; wait for user to continue speaking or click Send
           setAutoSendCountdown(0);
-          if (spokenTextRef.current && spokenTextRef.current.length >= 3 && !isSubmittingRef.current && !isTerminatedRef.current) {
-            submitUserTurnRef.current?.(spokenTextRef.current);
-          }
-        }, SILENCE_MS);
+        }
       },
       onError: (err) => {
         console.warn('[Speech] Notice:', err);
       },
       onEnd: () => {
+        setUserAudioLevel(0);
         if (isTerminatedRef.current) return;
         if (
           !micMutedRef.current &&
@@ -340,7 +355,7 @@ export default function InterviewRoom({ user }) {
             if (!isTerminatedRef.current && !micMutedRef.current && !isSpeakingRef.current) {
               startListeningSession();
             }
-          }, 300);
+          }, 200);
         }
       },
     });

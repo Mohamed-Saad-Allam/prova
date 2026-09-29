@@ -10,6 +10,11 @@ export const isSpeechRecognitionSupported = !!(
   (window.SpeechRecognition || window.webkitSpeechRecognition)
 );
 
+export const isMobileDevice =
+  typeof navigator !== 'undefined' &&
+  (/iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2));
+
 // ── 1. Speech Recognition ──
 let recognitionInstance = null;
 let isExplicitlyStopped = false;
@@ -48,7 +53,8 @@ export function startListening({
       rec.lang = lang;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
-      rec.continuous = continuous;
+      // On mobile WebKit/Blink, continuous=false with onend restart is significantly more reliable
+      rec.continuous = isMobileDevice ? false : continuous;
 
       let accumulatedFinalText = '';
 
@@ -85,13 +91,13 @@ export function startListening({
       };
 
       rec.onend = () => {
-        if (!isExplicitlyStopped && continuous) {
-          // Restart clean instance with a tiny breather so browser mic handle doesn't conflict
+        if (!isExplicitlyStopped && (continuous || isMobileDevice)) {
+          // Restart clean instance with a short breather so browser mic handle doesn't conflict
           setTimeout(() => {
             if (!isExplicitlyStopped) {
               recognitionInstance = initRecognition();
             }
-          }, 60);
+          }, isMobileDevice ? 120 : 60);
           return;
         }
         onEnd?.();
@@ -133,6 +139,13 @@ let userMicRafId = null;
 
 export async function startUserMicLevel(onLevel) {
   stopUserMicLevel();
+
+  // On Mobile, opening a parallel getUserMedia stream steals/locks the hardware mic from SpeechRecognition!
+  // So on mobile we do not open getUserMedia and instead let SpeechRecognition have 100% exclusive mic access.
+  if (isMobileDevice) {
+    return null;
+  }
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -168,7 +181,7 @@ export async function startUserMicLevel(onLevel) {
     userMicRafId = requestAnimationFrame(checkLevel);
     return stream;
   } catch (err) {
-    console.warn('[Speech] mic level init failed:', err);
+    console.warn('[Speech] mic level init fallback:', err);
     return null;
   }
 }
