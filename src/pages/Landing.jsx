@@ -29,16 +29,16 @@ import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
+  hidden: { opacity: 0, y: 12 },
   visible: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] },
+    transition: { delay: i * 0.03, duration: 0.28, ease: 'easeOut' },
   }),
 };
 
 const stagger = {
-  visible: { transition: { staggerChildren: 0.08 } },
+  visible: { transition: { staggerChildren: 0.03 } },
 };
 
 export default function Landing({ user, userRole }) {
@@ -204,31 +204,28 @@ export default function Landing({ user, userRole }) {
             overflow: 'hidden',
           }}
         >
-          {/* Ambient Lighting Orbs */}
+          {/* Ambient Lighting Accents (Lightweight GPU-friendly gradients) */}
           <div
             style={{
               position: 'absolute',
-              top: '12%',
-              insetInlineEnd: '6%',
-              width: 520,
-              height: 520,
+              top: '5%',
+              insetInlineEnd: '5%',
+              width: 480,
+              height: 480,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(232,130,90,0.12) 0%, rgba(27,42,65,0.02) 70%)',
-              filter: 'blur(60px)',
+              background: 'radial-gradient(circle, rgba(232,130,90,0.08) 0%, transparent 70%)',
               pointerEvents: 'none',
-              animation: 'float-orb 10s ease-in-out infinite alternate',
             }}
           />
           <div
             style={{
               position: 'absolute',
-              bottom: '8%',
+              bottom: '5%',
               insetInlineStart: '5%',
-              width: 440,
-              height: 440,
+              width: 400,
+              height: 400,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(27,42,65,0.08) 0%, rgba(232,130,90,0.02) 70%)',
-              filter: 'blur(50px)',
+              background: 'radial-gradient(circle, rgba(74,144,217,0.06) 0%, transparent 70%)',
               pointerEvents: 'none',
             }}
           />

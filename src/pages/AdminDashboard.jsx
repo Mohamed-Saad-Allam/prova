@@ -71,6 +71,7 @@ export default function AdminDashboard({ user }) {
 
   // ── Layout & Theme State ──
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('prova_theme') || 'light');
 
   const toggleTheme = () => {
@@ -636,8 +637,17 @@ export default function AdminDashboard({ user }) {
       color: 'var(--text-primary)',
       position: 'relative',
     }}>
+      {/* ── Mobile Overlay Backdrop ── */}
+      {mobileMenuOpen && (
+        <div
+          className="admin-mobile-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* ── 1. SIDEBAR NAVIGATION ── */}
       <aside
+        className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}
         style={{
           width: sidebarCollapsed ? 78 : 280,
           background: 'var(--bg-surface)',
@@ -648,7 +658,7 @@ export default function AdminDashboard({ user }) {
           top: 0,
           height: '100dvh',
           zIndex: 40,
-          transition: 'width 0.25s ease',
+          transition: 'width 0.25s ease, transform 0.25s ease',
           flexShrink: 0,
           boxShadow: 'var(--shadow-sm)',
         }}
@@ -686,14 +696,26 @@ export default function AdminDashboard({ user }) {
             )}
           </div>
 
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="btn btn-icon btn-ghost btn-sm"
-            style={{ padding: '0.35rem' }}
-            title={sidebarCollapsed ? (isRtl ? 'توسيع القائمة' : 'Expand Sidebar') : (isRtl ? 'طي القائمة' : 'Collapse Sidebar')}
-          >
-            <FontAwesomeIcon icon={sidebarCollapsed ? (isRtl ? faChevronLeft : faChevronRight) : (isRtl ? faChevronRight : faChevronLeft)} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="btn btn-icon btn-ghost btn-sm"
+              style={{ padding: '0.35rem' }}
+              title={sidebarCollapsed ? (isRtl ? 'توسيع القائمة' : 'Expand Sidebar') : (isRtl ? 'طي القائمة' : 'Collapse Sidebar')}
+            >
+              <FontAwesomeIcon icon={sidebarCollapsed ? (isRtl ? faChevronLeft : faChevronRight) : (isRtl ? faChevronRight : faChevronLeft)} />
+            </button>
+            {mobileMenuOpen && (
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="btn btn-icon btn-ghost btn-sm"
+                style={{ padding: '0.35rem', color: 'var(--text-muted)' }}
+                title={isRtl ? 'إغلاق القائمة' : 'Close Menu'}
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Admin User Info Card */}
@@ -742,7 +764,10 @@ export default function AdminDashboard({ user }) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setMobileMenuOpen(false);
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -864,21 +889,33 @@ export default function AdminDashboard({ user }) {
       {/* ── 2. MAIN WORKSPACE ── */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Topbar Header */}
-        <header style={{
-          height: 68,
-          background: 'var(--bg-surface)',
-          borderBottom: '1px solid var(--border-subtle)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 30,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 1.75rem',
-          backdropFilter: 'blur(12px)',
-          gap: '1rem',
-        }}>
+        <header
+          className="admin-topbar"
+          style={{
+            height: 68,
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 1.75rem',
+            backdropFilter: 'blur(12px)',
+            gap: '1rem',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="btn btn-icon btn-ghost admin-mobile-toggle"
+              style={{ padding: '0.45rem', border: '1px solid var(--border-default)' }}
+              title={isRtl ? 'فتح القائمة الجانبية' : 'Open Sidebar'}
+            >
+              <FontAwesomeIcon icon={faBars} style={{ fontSize: '1.05rem' }} />
+            </button>
+
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--c-coral)', fontWeight: 800, textTransform: 'uppercase' }}>
@@ -920,7 +957,7 @@ export default function AdminDashboard({ user }) {
         </header>
 
         {/* Tab Workspace Body */}
-        <main style={{ flex: 1, padding: '1.75rem 2rem 5rem', maxWidth: 1350, width: '100%', margin: '0 auto' }}>
+        <main className="admin-main-content" style={{ flex: 1, padding: '1.75rem 2rem 5rem', maxWidth: 1350, width: '100%', margin: '0 auto' }}>
           {/* Active Broadcast Announcement Alert */}
           {aiSettings.showAnnouncement && aiSettings.announcement && (
             <div className="card" style={{

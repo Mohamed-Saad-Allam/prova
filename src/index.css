@@ -358,32 +358,24 @@ h4 { font-size: 1.1rem; font-weight: 600; }
 .bg-animated::before {
   content: '';
   position: absolute;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(232,130,90,0.12) 0%, transparent 70%);
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(232,130,90,0.08) 0%, transparent 70%);
   border-radius: 50%;
-  top: -200px;
-  right: -200px;
-  animation: float-orb 8s ease-in-out infinite;
+  top: -150px;
+  right: -150px;
   pointer-events: none;
 }
 .bg-animated::after {
   content: '';
   position: absolute;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(27,42,65,0.08) 0%, transparent 70%);
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(27,42,65,0.06) 0%, transparent 70%);
   border-radius: 50%;
-  bottom: -100px;
-  left: -100px;
-  animation: float-orb 10s ease-in-out infinite reverse;
+  bottom: -80px;
+  left: -80px;
   pointer-events: none;
-}
-
-@keyframes float-orb {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%       { transform: translate(30px, -20px) scale(1.05); }
-  66%       { transform: translate(-20px, 30px) scale(0.95); }
 }
 
 /* ── Fade In Animations ── */
@@ -747,6 +739,139 @@ html, body {
   height: 68px;
   padding: 0 1.25rem;
 }
+
+/* ─────────────────────────────────────────
+   ADMIN DASHBOARD RESPONSIVE DESIGN SYSTEM
+───────────────────────────────────────── */
+.admin-sidebar {
+  width: 280px;
+  background: var(--bg-surface);
+  border-inline-end: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  z-index: 40;
+  transition: width 0.25s ease, transform 0.25s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-sidebar.collapsed {
+  width: 78px;
+}
+
+.admin-mobile-overlay {
+  display: none;
+}
+
+.admin-mobile-toggle {
+  display: none;
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.admin-table-card {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0;
+  border-radius: var(--radius-lg);
+}
+
+.admin-table-card table {
+  min-width: 720px;
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    inset-inline-start: 0 !important;
+    width: 280px !important;
+    z-index: 100 !important;
+    transform: translateX(100%);
+    box-shadow: var(--shadow-2xl) !important;
+  }
+  
+  [dir="ltr"] .admin-sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .admin-sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+  
+  .admin-mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 90;
+  }
+  
+  .admin-mobile-toggle {
+    display: inline-flex !important;
+  }
+  
+  .admin-topbar {
+    padding: 0 0.85rem !important;
+    height: 60px !important;
+  }
+  
+  .admin-main-content {
+    padding: 1rem 0.85rem 4rem !important;
+  }
+  
+  .admin-kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+  
+  .admin-kpi-grid .card {
+    padding: 1rem 0.85rem !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.6rem !important;
+  }
+  
+  .admin-kpi-grid .card h3 {
+    font-size: 1.4rem !important;
+  }
+  
+  .admin-topbar-actions .btn span {
+    display: none;
+  }
+  
+  .admin-topbar-actions .btn {
+    padding: 0.45rem 0.65rem !important;
+  }
+  
+  .admin-search-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .admin-search-toolbar > div {
+    min-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 
 .zoom-toolbar-btn {
   min-width: 52px;
