@@ -1,0 +1,152 @@
+{
+  "nav": {
+    "features": "Features",
+    "howItWorks": "How It Works",
+    "login": "Log In",
+    "signup": "Get Started Free"
+  },
+  "hero": {
+    "badge": "Powered by AI",
+    "title": "Your rehearsal before",
+    "titleHighlight": "the real interview",
+    "subtitle": "Practice job interviews with an AI avatar that asks, evaluates, and helps you build a professional CV — all for free.",
+    "ctaPrimary": "Start Your Rehearsal",
+    "ctaSecondary": "See How It Works",
+    "trustedBy": "Trusted by over",
+    "trustedCount": "5,000+ applicants"
+  },
+  "features": {
+    "title": "Everything you need in one place",
+    "subtitle": "From CV building to your final report",
+    "cv": {
+      "title": "Smart CV Builder",
+      "desc": "Answer simple questions and let AI build your professional CV automatically"
+    },
+    "interview": {
+      "title": "Live Voice Interview",
+      "desc": "An AI avatar asks you real questions — answer by voice or text"
+    },
+    "report": {
+      "title": "Detailed Report",
+      "desc": "Get a full evaluation with strengths, weaknesses, and CV improvement tips"
+    },
+    "languages": {
+      "title": "Arabic & English",
+      "desc": "Full bilingual support with automatic RTL/LTR text direction switching"
+    }
+  },
+  "howItWorks": {
+    "title": "How does Prova work?",
+    "step1": { "title": "Sign up & Build CV", "desc": "Answer simple questions or upload your existing CV" },
+    "step2": { "title": "Start Interview", "desc": "The avatar asks personalized questions based on your CV" },
+    "step3": { "title": "Get Your Report", "desc": "Full evaluation and suggested CV improvements" }
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Log in to continue your journey",
+    "signupTitle": "Start your Prova journey",
+    "signupSubtitle": "Create a free account in seconds",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "example@email.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "nameLabel": "Full Name",
+    "namePlaceholder": "Your name here",
+    "loginBtn": "Log In",
+    "signupBtn": "Create Account",
+    "orWith": "or",
+    "continueWithGoogle": "Continue with Google",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "signupLink": "Sign up now",
+    "loginLink": "Log in",
+    "forgotPassword": "Forgot password?",
+    "agreeTerms": "By signing up, you agree to our",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  },
+  "cvBuilder": {
+    "title": "Let's build your CV together",
+    "subtitle": "Answer these questions and we'll do the rest",
+    "steps": {
+      "personal": "Personal Info",
+      "education": "Education",
+      "experience": "Work Experience",
+      "skills": "Skills",
+      "projects": "Projects"
+    },
+    "next": "Next",
+    "back": "Back",
+    "generate": "Generate My CV",
+    "generating": "Building your CV...",
+    "upload": "Or upload your existing CV",
+    "uploadHint": "PDF or DOCX — max 5MB",
+    "autoSaved": "Auto-saved"
+  },
+  "services": {
+    "title": "What would you like to do today?",
+    "startInterview": "Start New Interview",
+    "startInterviewDesc": "Mock interview with an AI avatar",
+    "editCv": "Edit Your CV",
+    "editCvDesc": "Update and improve your current CV",
+    "viewReports": "My Reports",
+    "viewReportsDesc": "Review past interview results",
+    "settings": "Settings",
+    "settingsDesc": "Language, theme, and account"
+  },
+  "interview": {
+    "preparing": "Preparing your questions...",
+    "question": "Question",
+    "of": "of",
+    "tapToSpeak": "Tap to speak",
+    "listening": "Listening...",
+    "processing": "Processing...",
+    "typeAnswer": "Or type your answer here",
+    "send": "Send",
+    "endInterview": "End Interview",
+    "confirmEnd": "End the interview?",
+    "confirmEndDesc": "Remaining questions won't be recorded.",
+    "cancel": "No, continue",
+    "confirm": "Yes, end it",
+    "micBlocked": "Microphone blocked — you can type your answer",
+    "browserNotSupported": "Your browser doesn't support voice recording — please use text input"
+  },
+  "report": {
+    "title": "Your Final Report",
+    "score": "Overall Score",
+    "outOf": "out of 100",
+    "strengths": "Strengths",
+    "weaknesses": "Areas for Improvement",
+    "cvSuggestions": "CV Improvement Suggestions",
+    "improveCV": "Improve CV Based on Results",
+    "retryInterview": "Try a New Interview",
+    "shareReport": "Share Your Report",
+    "loading": "Preparing your report..."
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "arabic": "العربية",
+    "english": "English",
+    "theme": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "account": "Account",
+    "logout": "Log Out",
+    "logoutConfirm": "Are you sure you want to log out?"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "yes": "Yes",
+    "no": "No",
+    "or": "or"
+  }
+}
