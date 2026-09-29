@@ -24,64 +24,20 @@ import ExactCvTemplate from '../components/cv/ExactCvTemplate';
 import VoiceCvAssistant from '../components/cv/VoiceCvAssistant';
 import toast from 'react-hot-toast';
 
-const INITIAL_CV_DATA = {
-  name: 'Alex Morgan',
-  jobTitle: 'Senior Software Engineer & Team Lead',
-  address: 'Cairo, Egypt',
-  contact: 'alex.morgan@example.com | +20 100 123 4567',
-  links: 'linkedin.com/in/alexmorgan | github.com/alexmorgan',
-  careerObjective: 'Results-driven Senior Software Engineer with 7+ years of experience architecting high-throughput distributed systems and leading cross-functional engineering teams to accelerate feature delivery by 40%.',
-  careerHistory: [
-    {
-      title: 'Senior Software Engineer & Team Lead',
-      company: 'Tech Horizons Global',
-      location: 'Cairo, Egypt',
-      dates: 'Jan 2022 – Present',
-      duties: [
-        'Architected distributed microservices backend reducing system latency by 35% across 250K+ daily active users.',
-        'Engineered automated CI/CD deployment pipelines, shortening release cycles from 2 weeks to under 4 hours.',
-        'Led a cross-functional team of 6 engineers to deliver enterprise client platform 3 weeks ahead of schedule.',
-        'Optimized PostgreSQL database query execution plans, slashing server memory consumption by 28%.',
-      ],
-    },
-    {
-      title: 'Software Engineer',
-      company: 'Digital Core Systems',
-      location: 'Alexandria, Egypt',
-      dates: 'Jun 2019 – Dec 2021',
-      duties: [
-        'Developed RESTful API endpoints and authentication services handling 1.5M+ requests per month.',
-        'Refactored legacy monolith codebase into modular services, improving maintainability score by 45%.',
-        'Collaborated with product designers to build responsive interfaces, increasing conversion rate by 18%.',
-      ],
-    },
-  ],
-  technicalSkills: 'JavaScript (ES6+), TypeScript, React, Node.js, Python, PostgreSQL, REST APIs, Docker, Git, AWS',
-  methodologies: 'Agile/Scrum, CI/CD, Test-Driven Development (TDD), System Architecture, Microservices',
-  coreCompetencies: 'Cross-Functional Leadership, Problem Solving, Analytical Thinking, Performance Optimization',
-  educationList: [
-    {
-      degree: 'Bachelor of Science in Computer Science',
-      institution: 'Cairo University',
-      dates: '2015 – 2019',
-      grade: 'Very Good with Honors (GPA 3.7/4.0)',
-    },
-  ],
-  projectsCertifications: [
-    {
-      title: 'AWS Certified Solutions Architect – Associate',
-      issuer: 'Amazon Web Services (AWS)',
-      date: '2023',
-      detail: 'Demonstrated deep expertise in scalable cloud architecture, IAM security, and resilient VPC network design.',
-    },
-    {
-      title: 'Real-Time Enterprise Telemetry Pipeline',
-      issuer: 'Production Open-Source Project',
-      date: '2022',
-      detail: 'Built high-throughput data processing pipeline capable of handling 50,000 telemetry events per second.',
-    },
-  ],
-};
+const getCleanCvData = (u) => ({
+  name: u?.user_metadata?.full_name || u?.user_metadata?.name || '',
+  jobTitle: '',
+  address: '',
+  contact: u?.email || '',
+  links: '',
+  careerObjective: '',
+  careerHistory: [],
+  technicalSkills: '',
+  methodologies: '',
+  coreCompetencies: '',
+  educationList: [],
+  projectsCertifications: [],
+});
 
 export default function CvBuilder({ user }) {
   const { t, i18n } = useTranslation();
@@ -94,10 +50,15 @@ export default function CvBuilder({ user }) {
       const savedDraft = localStorage.getItem('prova_cv_draft');
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
-        if (parsed && typeof parsed === 'object') return { ...INITIAL_CV_DATA, ...parsed };
+        // If the saved draft has the legacy mock name 'Alex Morgan', discard it
+        if (parsed?.name === 'Alex Morgan') {
+          localStorage.removeItem('prova_cv_draft');
+        } else if (parsed && typeof parsed === 'object') {
+          return { ...getCleanCvData(user), ...parsed };
+        }
       }
     } catch (_e) {}
-    return INITIAL_CV_DATA;
+    return getCleanCvData(user);
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);

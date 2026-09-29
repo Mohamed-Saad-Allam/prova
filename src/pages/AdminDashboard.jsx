@@ -206,26 +206,10 @@ export default function AdminDashboard({ user }) {
         }));
       }
 
-      // Set fallback sample data if DB is completely fresh/empty so the admin has full management UI
-      const resolvedProfiles = (pData && pData.length > 0) ? pData : [
-        { id: user?.id || 'usr-admin', full_name: user?.user_metadata?.full_name || 'أحمد المشرف (Admin)', email: user?.email || 'admin@prova.ai', role: 'admin', preferred_lang: 'ar', theme: 'light', created_at: new Date().toISOString() },
-        { id: 'usr-demo-1', full_name: 'سارة خالد', email: 'sara.khaled@example.com', role: 'user', preferred_lang: 'ar', theme: 'light', created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-        { id: 'usr-demo-2', full_name: 'عمر النجار', email: 'omar.dev@example.com', role: 'user', preferred_lang: 'en', theme: 'dark', created_at: new Date(Date.now() - 86400000 * 4).toISOString() },
-        { id: 'usr-demo-3', full_name: 'مريم السيد', email: 'mariam.ux@example.com', role: 'user', preferred_lang: 'ar', theme: 'light', created_at: new Date(Date.now() - 86400000 * 6).toISOString() },
-      ];
-
-      const resolvedInterviews = (iData && iData.length > 0) ? iData : [
-        { id: 'iv-8821', user_id: resolvedProfiles[1]?.id || 'usr-demo-1', status: 'completed', started_at: new Date(Date.now() - 3600000 * 3).toISOString(), ended_at: new Date(Date.now() - 3600000 * 2.5).toISOString(), reports: [{ id: 'rep-1', score: 88, strengths: 'تواصل ممتاز وشرح دقيق للخبرات البرمجية', weaknesses: 'الإطالة في الإجابات غير التقنية', cv_suggestions: 'إبراز مشاريع React السابقة في أعلى السيرة' }] },
-        { id: 'iv-7714', user_id: resolvedProfiles[2]?.id || 'usr-demo-2', status: 'completed', started_at: new Date(Date.now() - 3600000 * 12).toISOString(), ended_at: new Date(Date.now() - 3600000 * 11.6).toISOString(), reports: [{ id: 'rep-2', score: 72, strengths: 'ثقة عالية في الحديث بالإنجليزية', weaknesses: 'عدم ذكر مؤشرات رقمية للإنجازات', cv_suggestions: 'إضافة شهادات AWS أو Cloud المعتمدة' }] },
-        { id: 'iv-6602', user_id: resolvedProfiles[3]?.id || 'usr-demo-3', status: 'completed', started_at: new Date(Date.now() - 86400000 * 1).toISOString(), ended_at: new Date(Date.now() - 86400000 * 0.95).toISOString(), reports: [{ id: 'rep-3', score: 94, strengths: 'إجابات منظمة للغاية ومطابقة لمنهجية STAR', weaknesses: 'لا توجد نقاط ضعف جوهرية', cv_suggestions: 'السيرة الذاتية ممتازة وجاهزة للتقديم' }] },
-        { id: 'iv-5590', user_id: resolvedProfiles[1]?.id || 'usr-demo-1', status: 'in_progress', started_at: new Date(Date.now() - 600000).toISOString(), reports: [] },
-      ];
-
-      const resolvedCvs = (cData && cData.length > 0) ? cData : [
-        { id: 'cv-401', user_id: resolvedProfiles[1]?.id || 'usr-demo-1', source: 'generated', lang: 'ar', raw_text: 'مهندسة برمجيات واجهات أمامية خبرة 3 سنوات في React, Next.js, TailwindCSS', formatted_html: '<div style="padding: 1rem;"><h2>سارة خالد</h2><p>مهندسة واجهات أمامية</p><p>خبرة عملية في بناء تطبيقات الويب التفاعلية</p></div>', created_at: new Date(Date.now() - 86400000 * 2).toISOString(), updated_at: new Date().toISOString() },
-        { id: 'cv-402', user_id: resolvedProfiles[2]?.id || 'usr-demo-2', source: 'generated', lang: 'en', raw_text: 'Senior Full Stack Node.js & React Developer with microservices expertise', formatted_html: '<div style="padding: 1rem;"><h2>Omar El-Naggar</h2><p>Senior Full Stack Developer</p></div>', created_at: new Date(Date.now() - 86400000 * 4).toISOString(), updated_at: new Date().toISOString() },
-        { id: 'cv-403', user_id: resolvedProfiles[3]?.id || 'usr-demo-3', source: 'uploaded', lang: 'ar', raw_text: 'مصممة تجربة مستخدم UI/UX متخصصة في Figma وتصميم الأنظمة الرقمية', formatted_html: '<div style="padding: 1rem;"><h2>مريم السيد</h2><p>Product Designer & UX Researcher</p></div>', created_at: new Date(Date.now() - 86400000 * 6).toISOString(), updated_at: new Date().toISOString() },
-      ];
+      // Real clean data from database (no mock fallback)
+      const resolvedProfiles = pData || [];
+      const resolvedInterviews = iData || [];
+      const resolvedCvs = cData || [];
 
       setProfiles(resolvedProfiles);
       setInterviews(resolvedInterviews);
@@ -233,7 +217,7 @@ export default function AdminDashboard({ user }) {
       setCvAnswers(aData || []);
       setReports(rData || []);
 
-      // Calculate Metrics
+      // Calculate Metrics from actual database records
       const completedIvs = resolvedInterviews.filter(i => i.status === 'completed');
       let scoreSum = 0;
       let scoreCount = 0;
@@ -248,8 +232,10 @@ export default function AdminDashboard({ user }) {
         }
       });
 
-      const avg = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 84;
-      const passRate = scoreCount > 0 ? Math.round((passCount / scoreCount) * 100) : 90;
+      const avg = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0;
+      const passRate = scoreCount > 0 ? Math.round((passCount / scoreCount) * 100) : 0;
+      const arUsers = resolvedProfiles.filter(p => p.preferred_lang === 'ar').length;
+      const arUsersPercent = resolvedProfiles.length > 0 ? Math.round((arUsers / resolvedProfiles.length) * 100) : 100;
 
       setStats({
         totalUsers: resolvedProfiles.length,
@@ -258,7 +244,7 @@ export default function AdminDashboard({ user }) {
         totalCvs: resolvedCvs.length,
         avgScore: avg,
         passRate: passRate,
-        arUsersPercent: 82,
+        arUsersPercent: arUsersPercent,
       });
 
     } catch (err) {
@@ -1091,34 +1077,40 @@ export default function AdminDashboard({ user }) {
                   {isRtl ? 'سجل النشاطات والأحداث الأخيرة' : 'Live Platform Event Stream'}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {interviews.slice(0, 4).map((iv, idx) => {
-                    const cand = profiles.find(p => p.id === iv.user_id) || { full_name: 'مرشح' };
-                    return (
-                      <div key={iv.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{
-                            width: 34, height: 34, borderRadius: '50%',
-                            background: iv.status === 'completed' ? 'rgba(72,187,120,0.15)' : 'rgba(232,130,90,0.15)',
-                            color: iv.status === 'completed' ? '#48BB78' : 'var(--c-coral)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem',
-                          }}>
-                            <FontAwesomeIcon icon={iv.status === 'completed' ? faCircleCheck : faVideo} />
+                  {interviews.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                      <p style={{ margin: 0, fontSize: '0.88rem' }}>{isRtl ? 'لا توجد نشاطات مسجلة بعد — قاعدة البيانات نظيفة' : 'No recorded activity yet — database is clean'}</p>
+                    </div>
+                  ) : (
+                    interviews.slice(0, 4).map((iv, idx) => {
+                      const cand = profiles.find(p => p.id === iv.user_id) || { full_name: 'مرشح' };
+                      return (
+                        <div key={iv.id || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{
+                              width: 34, height: 34, borderRadius: '50%',
+                              background: iv.status === 'completed' ? 'rgba(72,187,120,0.15)' : 'rgba(232,130,90,0.15)',
+                              color: iv.status === 'completed' ? '#48BB78' : 'var(--c-coral)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem',
+                            }}>
+                              <FontAwesomeIcon icon={iv.status === 'completed' ? faCircleCheck : faVideo} />
+                            </div>
+                            <div>
+                              <p style={{ fontSize: '0.86rem', fontWeight: 600 }}>
+                                {cand.full_name} {iv.status === 'completed' ? (isRtl ? 'أنهى مقابلة تجريبية' : 'completed mock interview') : (isRtl ? 'بدأ مقابلة حية' : 'started live interview')}
+                              </p>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {iv.started_at ? new Date(iv.started_at).toLocaleTimeString(isRtl ? 'ar-EG' : 'en-US') : '—'}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <p style={{ fontSize: '0.86rem', fontWeight: 600 }}>
-                              {cand.full_name} {iv.status === 'completed' ? (isRtl ? 'أنهى مقابلة تجريبية' : 'completed mock interview') : (isRtl ? 'بدأ مقابلة حية' : 'started live interview')}
-                            </p>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {iv.started_at ? new Date(iv.started_at).toLocaleTimeString(isRtl ? 'ar-EG' : 'en-US') : '—'}
-                            </span>
-                          </div>
+                          {iv.reports?.[0]?.score != null && (
+                            <span className="badge badge-coral">{iv.reports[0].score}/100</span>
+                          )}
                         </div>
-                        {iv.reports?.[0]?.score != null && (
-                          <span className="badge badge-coral">{iv.reports[0].score}/100</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1447,67 +1439,81 @@ export default function AdminDashboard({ user }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredInterviews.map((iv, i) => {
-                    const cand = profiles.find(p => p.id === iv.user_id) || { full_name: 'مرشح' };
-                    const hasReport = iv.reports && iv.reports.length > 0 && iv.reports[0]?.score != null;
-                    return (
-                      <tr key={iv.id || i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>
-                          #{iv.id.slice(-6).toUpperCase()}
-                        </td>
-                        <td style={{ padding: '1rem', fontWeight: 600 }}>{cand.full_name}</td>
-                        <td style={{ padding: '1rem' }}>
-                          <span className={`badge ${iv.status === 'completed' ? 'badge-green' : 'badge-coral'}`}>
-                            {iv.status === 'completed' ? (isRtl ? 'مكتملة ✓' : 'Completed') : (isRtl ? 'جارية...' : 'In Progress')}
-                          </span>
-                        </td>
-                        <td style={{ padding: '1rem' }}>
-                          {hasReport ? (
-                            <span style={{ fontWeight: 800, color: iv.reports[0].score >= 75 ? '#48BB78' : 'var(--c-coral)' }}>
-                              {iv.reports[0].score}/100
+                  {filteredInterviews.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        <FontAwesomeIcon icon={faMicrophone} style={{ fontSize: '2.2rem', marginBottom: '0.75rem', opacity: 0.35, display: 'block', margin: '0 auto 0.75rem' }} />
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                          {isRtl ? 'لا توجد جلسات مقابلات حتى الآن' : 'No interview sessions yet'}
+                        </p>
+                        <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', opacity: 0.75 }}>
+                          {isRtl ? 'قاعدة البيانات نظيفة. ستظهر المقابلات الحقيقية هنا فور إجرائها بواسطة المتقدمين' : 'Database is clean. Real candidate sessions will appear here as they practice.'}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredInterviews.map((iv, i) => {
+                      const cand = profiles.find(p => p.id === iv.user_id) || { full_name: 'مرشح' };
+                      const hasReport = iv.reports && iv.reports.length > 0 && iv.reports[0]?.score != null;
+                      return (
+                        <tr key={iv.id || i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>
+                            #{iv.id.slice(-6).toUpperCase()}
+                          </td>
+                          <td style={{ padding: '1rem', fontWeight: 600 }}>{cand.full_name}</td>
+                          <td style={{ padding: '1rem' }}>
+                            <span className={`badge ${iv.status === 'completed' ? 'badge-green' : 'badge-coral'}`}>
+                              {iv.status === 'completed' ? (isRtl ? 'مكتملة ✓' : 'Completed') : (isRtl ? 'جارية...' : 'In Progress')}
                             </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                              {isRtl ? 'لم يستخرج بعد' : 'No report'}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                          {iv.started_at ? new Date(iv.started_at).toLocaleString(isRtl ? 'ar-EG' : 'en-US') : '—'}
-                        </td>
-                        <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                            <Link to={`/report/${iv.id}`} className="btn btn-ghost btn-sm" title={isRtl ? 'عرض التقرير' : 'View Report'}>
-                              <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
-                              <span>{isRtl ? 'التقرير' : 'Report'}</span>
-                            </Link>
-                            <button
-                              onClick={() => setInspectInterview(iv)}
-                              className="btn btn-ghost btn-sm"
-                              title={isRtl ? 'فحص تفاصيل الجلسة' : 'Inspect Session'}
-                            >
-                              <FontAwesomeIcon icon={faEye} />
-                            </button>
-                            <button
-                              onClick={() => handleRegenerateReport(iv.id)}
-                              className="btn btn-ghost btn-sm"
-                              title={isRtl ? 'إعادة استخراج التقرير بالذكاء الاصطناعي لو كان معلقاً' : 'Force Re-generate Report'}
-                            >
-                              <FontAwesomeIcon icon={faWandMagicSparkles} style={{ color: 'var(--c-coral)' }} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteInterview(iv.id)}
-                              className="btn btn-ghost btn-sm"
-                              style={{ color: '#E53E3E' }}
-                              title={isRtl ? 'حذف المقابلة' : 'Delete'}
-                            >
-                              <FontAwesomeIcon icon={faTrashCan} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td style={{ padding: '1rem' }}>
+                            {hasReport ? (
+                              <span style={{ fontWeight: 800, color: iv.reports[0].score >= 75 ? '#48BB78' : 'var(--c-coral)' }}>
+                                {iv.reports[0].score}/100
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                {isRtl ? 'لم يستخرج بعد' : 'No report'}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                            {iv.started_at ? new Date(iv.started_at).toLocaleString(isRtl ? 'ar-EG' : 'en-US') : '—'}
+                          </td>
+                          <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                              <Link to={`/report/${iv.id}`} className="btn btn-ghost btn-sm" title={isRtl ? 'عرض التقرير' : 'View Report'}>
+                                <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+                                <span>{isRtl ? 'التقرير' : 'Report'}</span>
+                              </Link>
+                              <button
+                                onClick={() => setInspectInterview(iv)}
+                                className="btn btn-ghost btn-sm"
+                                title={isRtl ? 'فحص تفاصيل الجلسة' : 'Inspect Session'}
+                              >
+                                <FontAwesomeIcon icon={faEye} />
+                              </button>
+                              <button
+                                onClick={() => handleRegenerateReport(iv.id)}
+                                className="btn btn-ghost btn-sm"
+                                title={isRtl ? 'إعادة استخراج التقرير بالذكاء الاصطناعي لو كان معلقاً' : 'Force Re-generate Report'}
+                              >
+                                <FontAwesomeIcon icon={faWandMagicSparkles} style={{ color: 'var(--c-coral)' }} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInterview(iv.id)}
+                                className="btn btn-ghost btn-sm"
+                                style={{ color: '#E53E3E' }}
+                                title={isRtl ? 'حذف المقابلة' : 'Delete'}
+                              >
+                                <FontAwesomeIcon icon={faTrashCan} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1534,7 +1540,18 @@ export default function AdminDashboard({ user }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
-              {filteredCvs.map((cv, i) => {
+              {filteredCvs.length === 0 ? (
+                <div className="card" style={{ gridColumn: '1 / -1', padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <FontAwesomeIcon icon={faFileLines} style={{ fontSize: '2.2rem', marginBottom: '0.75rem', opacity: 0.35, display: 'block', margin: '0 auto 0.75rem' }} />
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                    {isRtl ? 'لا توجد سير ذاتية محفوظة حتى الآن' : 'No CVs found in database'}
+                  </p>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', opacity: 0.75 }}>
+                    {isRtl ? 'قاعدة البيانات نظيفة. ستظهر السير الذاتية الحقيقية هنا فور إنشائها بواسطة المتقدمين' : 'Database is clean. Candidate CVs will appear here once created.'}
+                  </p>
+                </div>
+              ) : (
+                filteredCvs.map((cv, i) => {
                 const cand = profiles.find(p => p.id === cv.user_id) || { full_name: 'مرشح' };
                 return (
                   <div key={cv.id || i} className="card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1580,7 +1597,7 @@ export default function AdminDashboard({ user }) {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </motion.div>
         )}
