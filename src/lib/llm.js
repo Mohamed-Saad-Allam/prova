@@ -72,11 +72,10 @@ async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxO
 
   // Real verified Gemini models in priority order (fastest/cheapest first)
   const candidateModels = [
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite-preview',
   ];
 
   for (const modelName of candidateModels) {
