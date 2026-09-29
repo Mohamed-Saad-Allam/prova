@@ -46,6 +46,7 @@ export default function Settings({ user }) {
   };
 
   const handleLogout = async () => {
+    localStorage.removeItem('prova_super_admin');
     await supabase.auth.signOut();
     navigate('/');
     toast.success(isRtl ? 'تم تسجيل الخروج' : 'Logged out successfully');

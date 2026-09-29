@@ -111,28 +111,13 @@ export default function Auth() {
       } else {
         // ── Sign In ──
         const emailLower = form.email.toLowerCase().trim();
-        const isMasterAdminAttempt =
-          emailLower === 'admin@prova.ai' ||
-          emailLower === 'admin@gmail.com' ||
-          emailLower.startsWith('admin@') ||
-          form.password === 'Admin@Prova2026!' ||
-          form.password === 'prova2026' ||
-          form.password === 'admin123456' ||
-          form.password === 'admin';
 
-        let authRes = await supabase.auth.signInWithPassword({
+        const authRes = await supabase.auth.signInWithPassword({
           email: form.email.trim(),
           password: form.password,
         });
 
         if (authRes.error) {
-          // Bypass master admin if credentials matched
-          if (isMasterAdminAttempt) {
-            localStorage.setItem('prova_super_admin', 'true');
-            toast.success(isRtl ? 'تم تسجيل دخول المشرف! جارٍ فتح لوحة الإدارة...' : 'Admin logged in! Opening Admin Hub...');
-            window.location.href = targetRedirect || '/admin';
-            return;
-          }
           throw authRes.error;
         }
 
@@ -154,12 +139,13 @@ export default function Auth() {
             return;
           }
 
-          if (profile?.role === 'admin' || isMasterAdminAttempt) {
-            await supabase.from('profiles').update({ role: 'admin' }).eq('id', authRes.data.user.id).catch(() => {});
-            localStorage.setItem('prova_super_admin', 'true');
+          const isOwner = emailLower === 'mohamed.saad.allam777@gmail.com' || emailLower === 'admin@prova.ai';
+          if (profile?.role === 'admin' || isOwner) {
             toast.success(isRtl ? 'مرحباً بك يا مدير المنصة! جارٍ التوجيه للوحة الإدارة...' : 'Welcome Admin! Opening Admin Hub...');
             window.location.href = targetRedirect || '/admin';
             return;
+          } else {
+            localStorage.removeItem('prova_super_admin');
           }
         }
 

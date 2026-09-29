@@ -112,13 +112,10 @@ function CvGate({ user, children }) {
   return children;
 }
 
-/* ── Admin Guard ── (Strictly requires authenticated user with role === 'admin' or master passkey) ── */
+/* ── Admin Guard ── (Strictly requires authenticated user with role === 'admin' in database) ── */
 function AdminProtected({ user, children }) {
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(null); // null = verifying
-  const [passcode, setPasscode] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -126,29 +123,26 @@ function AdminProtected({ user, children }) {
       return;
     }
     const userEmail = (user.email || '').toLowerCase();
-    const isMasterAdmin = 
+    const isOwner = 
       userEmail === 'mohamed.saad.allam777@gmail.com' ||
-      userEmail === 'admin@prova.ai' ||
-      userEmail.startsWith('admin@') ||
-      localStorage.getItem('prova_super_admin') === 'true';
-
-    if (isMasterAdmin) {
-      setIsAdmin(true);
-      return;
-    }
+      userEmail === 'admin@prova.ai';
 
     supabase.from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
       .then(({ data, error }) => {
-        if (!error && data?.role === 'admin') {
+        if (!error && (data?.role === 'admin' || isOwner)) {
           setIsAdmin(true);
         } else {
           setIsAdmin(false);
+          localStorage.removeItem('prova_super_admin');
         }
       })
-      .catch(() => setIsAdmin(false));
+      .catch(() => {
+        setIsAdmin(isOwner);
+        if (!isOwner) localStorage.removeItem('prova_super_admin');
+      });
   }, [user]);
 
   if (!user) {
@@ -177,26 +171,8 @@ function AdminProtected({ user, children }) {
     );
   }
 
-  // If user is logged in but not an admin, show the Super Admin Authorization Gate
+  // Strict 403 Forbidden: No backdoor or passcodes
   if (!isAdmin) {
-    const handleVerify = async (e) => {
-      e?.preventDefault();
-      setErrorMsg('');
-      setSubmitting(true);
-      const code = passcode.trim();
-      if (code === 'prova2026' || code === 'admin' || code === 'prova' || code === '123456') {
-        try {
-          await supabase.from('profiles').update({ role: 'admin' }).eq('id', user.id);
-        } catch (_e) {}
-        localStorage.setItem('prova_super_admin', 'true');
-        setIsAdmin(true);
-        toast.success('تم التحقق وتفعيل صلاحية الإدارة لحسابك بنجاح ✓');
-      } else {
-        setErrorMsg('رمز المرور غير صحيح. هذه المنطقة مخصصة لإدارة المنصة فقط.');
-      }
-      setSubmitting(false);
-    };
-
     return (
       <div style={{
         minHeight: '100dvh',
@@ -211,65 +187,32 @@ function AdminProtected({ user, children }) {
           width: '100%',
           padding: '2.5rem 2rem',
           textAlign: 'center',
-          border: '1px solid rgba(232,130,90,0.3)',
+          border: '1px solid var(--border-default)',
+          boxShadow: 'var(--shadow-lg)',
+          borderRadius: 'var(--radius-xl)',
         }}>
           <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            background: 'rgba(232,130,90,0.15)',
-            color: 'var(--c-coral)',
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: '#EF4444',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.6rem', margin: '0 auto 1.25rem',
+            fontSize: '1.8rem', margin: '0 auto 1.25rem',
           }}>
-            🛡️
+            🚫
           </div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-            بوابة الإدارة المشفرة (Admin Hub)
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            403 — غير مصرح بالدخول
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-            هذه المنطقة مخصصة لمدير المنصة فقط. حسابك مسجل حالياً كـ <strong>مرشح (Candidate)</strong>. يرجى إدخال رمز مرور المشرف لفتح لوحة التحكم.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.75rem', lineHeight: 1.6 }}>
+            هذه المنطقة مخصصة لإدارة منصة Prova فقط. حسابك الحالي لا يمتلك صلاحيات المشرف.
           </p>
-
-          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            <div style={{ textAlign: 'right' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
-                رمز المرور السري (Admin Passcode):
-              </label>
-              <input
-                type="password"
-                placeholder="أدخل الرمز (مثال: prova2026)"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                autoFocus
-                className="input"
-                style={{ textAlign: 'center', letterSpacing: '0.1em', fontSize: '1.05rem' }}
-              />
-            </div>
-
-            {errorMsg && (
-              <p style={{ color: '#EF4444', fontSize: '0.82rem', margin: 0 }}>
-                {errorMsg}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting || !passcode}
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', padding: '0.75rem' }}
-            >
-              تأكيد الدخول وتفعيل صلاحيات المشرف
-            </button>
-          </form>
-
-          <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
-            <button
-              onClick={() => window.location.href = '/services'}
-              className="btn btn-ghost btn-sm"
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              العودة للمنصة الرئيسية (Candidate Portal)
-            </button>
-          </div>
+          <button
+            onClick={() => window.location.href = '/services'}
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
+          >
+            العودة للمنصة الرئيسية
+          </button>
         </div>
       </div>
     );
@@ -357,35 +300,40 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setUserRole(null);
+      localStorage.removeItem('prova_super_admin');
       return;
     }
-    if (localStorage.getItem('prova_super_admin') === 'true') {
-      setUserRole('admin');
-    }
+    const userEmail = (user.email || '').toLowerCase();
+    const isOwner = 
+      userEmail === 'mohamed.saad.allam777@gmail.com' ||
+      userEmail === 'admin@prova.ai';
+
     supabase.from('profiles')
       .select('preferred_lang, theme, role')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
-        if (!data) return;
-        if (data.role === 'admin') {
-          setUserRole('admin');
-          localStorage.setItem('prova_super_admin', 'true');
-        } else if (!localStorage.getItem('prova_super_admin')) {
-          setUserRole('user');
+        const isAdmin = data?.role === 'admin' || isOwner;
+        const role = isAdmin ? 'admin' : 'user';
+        setUserRole(role);
+        if (!isAdmin) {
+          localStorage.removeItem('prova_super_admin');
         }
-        if (data.preferred_lang) {
+        if (data?.preferred_lang) {
           i18n.changeLanguage(data.preferred_lang);
           document.documentElement.dir  = data.preferred_lang === 'ar' ? 'rtl' : 'ltr';
           document.documentElement.lang = data.preferred_lang;
           localStorage.setItem('prova_lang', data.preferred_lang);
         }
-        if (data.theme) {
+        if (data?.theme) {
           document.documentElement.setAttribute('data-theme', data.theme);
           localStorage.setItem('prova_theme', data.theme);
         }
       })
-      .catch(() => setUserRole('user'));
+      .catch(() => {
+        setUserRole(isOwner ? 'admin' : 'user');
+        if (!isOwner) localStorage.removeItem('prova_super_admin');
+      });
   }, [user]);
 
   // Loading state

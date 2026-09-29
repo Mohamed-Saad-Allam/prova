@@ -74,6 +74,7 @@ export default function Header({ user }) {
 
   // ── Logout ──
   const handleLogout = async () => {
+    localStorage.removeItem('prova_super_admin');
     await supabase.auth.signOut();
     navigate('/');
   };
