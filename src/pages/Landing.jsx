@@ -201,6 +201,7 @@ export default function Landing({ user, userRole }) {
             alignItems: 'center',
             padding: '3.5rem 1.5rem',
             position: 'relative',
+            overflow: 'hidden',
           }}
         >
           {/* Ambient Lighting Orbs */}
@@ -233,15 +234,7 @@ export default function Landing({ user, userRole }) {
           />
 
           <div style={{ maxWidth: 1240, margin: '0 auto', width: '100%', position: 'relative', zIndex: 2 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1.08fr 0.92fr',
-                gap: '3.5rem',
-                alignItems: 'center',
-              }}
-              className="hero-grid"
-            >
+            <div className="hero-grid">
               {/* Left Column: Messaging & CTAs */}
               <motion.div
                 initial="hidden"
@@ -647,12 +640,7 @@ export default function Landing({ user, userRole }) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.5 }}
-              style={{
-                marginTop: '4rem',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '1rem',
-              }}
+              style={{ marginTop: '4rem' }}
               className="stats-grid"
             >
               {[
@@ -701,7 +689,7 @@ export default function Landing({ user, userRole }) {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="interviewers-grid">
+            <div className="interviewers-grid">
               {/* Ahmed Card */}
               <div
                 className="card"
@@ -950,7 +938,7 @@ export default function Landing({ user, userRole }) {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="comparison-grid">
+            <div className="comparison-grid">
               {/* Old Traditional Way */}
               <div
                 style={{
@@ -1364,13 +1352,12 @@ export default function Landing({ user, userRole }) {
               transition={{ duration: 0.6 }}
               style={{
                 background: 'linear-gradient(135deg, #1B2A41 0%, #223755 100%)',
-                borderRadius: 28,
-                padding: '3.5rem 2.5rem',
                 textAlign: 'center',
                 position: 'relative',
                 overflow: 'hidden',
                 boxShadow: 'var(--shadow-xl)',
               }}
+              className="cta-banner-box"
             >
               {/* Decorative Glow */}
               <div
@@ -1437,8 +1424,8 @@ export default function Landing({ user, userRole }) {
           .interviewers-grid { grid-template-columns: 1fr !important; }
           .comparison-grid { grid-template-columns: 1fr !important; }
         }
-        @media (max-width: 580px) {
-          .stats-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 480px) {
+          .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 0.6rem !important; }
         }
       `}</style>
     </div>

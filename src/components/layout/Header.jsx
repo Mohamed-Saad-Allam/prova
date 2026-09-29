@@ -93,12 +93,11 @@ export default function Header({ user }) {
       }}
     >
       <div
-        className="main-content"
+        className="main-content header-inner"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          minHeight: '86px',
           paddingTop: '0.25rem',
           paddingBottom: '0.25rem',
           maxWidth: '1200px',
@@ -113,10 +112,9 @@ export default function Header({ user }) {
           <img
             src={logoImg}
             alt="Prova Logo"
+            className="header-logo"
             style={{
-              height: 76,
               width: 'auto',
-              maxHeight: 76,
               objectFit: 'contain',
               transition: 'transform 0.2s ease',
               filter: 'drop-shadow(0 2px 10px rgba(0, 0, 0, 0.08))',
@@ -125,14 +123,7 @@ export default function Header({ user }) {
         </Link>
 
         {/* ── Desktop Nav ── */}
-        <nav
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-          className="desktop-nav"
-        >
+        <nav className="desktop-nav">
           {!user ? (
             <>
               <a href="#features" className="nav-link">
@@ -340,12 +331,36 @@ export default function Header({ user }) {
           color: var(--text-primary);
           background: var(--border-subtle);
         }
-        .desktop-nav { display: flex; }
-        .mobile-menu-btn { display: none; }
+        .header-inner {
+          min-height: 80px;
+        }
+        .header-logo {
+          height: 56px;
+          max-height: 56px;
+        }
+        .desktop-nav {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .mobile-menu-btn {
+          display: none;
+        }
 
-        @media (max-width: 768px) {
-          .desktop-nav { display: none; }
-          .mobile-menu-btn { display: flex; }
+        @media (max-width: 992px) {
+          .desktop-nav {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: inline-flex !important;
+          }
+          .header-inner {
+            min-height: 60px !important;
+          }
+          .header-logo {
+            height: 40px !important;
+            max-height: 40px !important;
+          }
         }
       `}</style>
     </header>

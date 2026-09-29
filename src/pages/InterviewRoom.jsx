@@ -102,6 +102,7 @@ function ZoomButton({
   badgeCount = 0,
   onClick,
   disabled = false,
+  className = '',
 }) {
   const [hov, setHov] = useState(false);
   return (
@@ -110,14 +111,14 @@ function ZoomButton({
       disabled={disabled}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
+      className={`zoom-toolbar-btn ${className}`.trim()}
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         gap: '0.2rem',
-        padding: '0.35rem 0.75rem',
-        minWidth: 62,
+        padding: '0.35rem 0.6rem',
         borderRadius: 8,
         border: danger && active ? '1px solid rgba(239,68,68,0.35)' : '1px solid transparent',
         background: danger && active ? 'rgba(239,68,68,0.12)' : active ? 'rgba(232,130,90,0.14)' : hov ? 'var(--bg-subtle)' : 'transparent',
@@ -128,8 +129,8 @@ function ZoomButton({
         opacity: disabled ? 0.35 : 1,
       }}
     >
-      <FontAwesomeIcon icon={icon} style={{ fontSize: '1.2rem', color: danger ? '#ef4444' : active ? 'var(--c-coral)' : 'var(--text-secondary)' }} />
-      <span style={{ fontSize: '0.66rem', fontWeight: 600, color: danger ? '#ef4444' : active ? 'var(--c-coral)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
+      <FontAwesomeIcon icon={icon} style={{ fontSize: '1.15rem', color: danger ? '#ef4444' : active ? 'var(--c-coral)' : 'var(--text-secondary)' }} />
+      <span className="zoom-btn-label" style={{ fontSize: '0.65rem', fontWeight: 600, color: danger ? '#ef4444' : active ? 'var(--c-coral)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</span>
       {badgeCount > 0 && (
         <span
           style={{
@@ -847,6 +848,7 @@ export default function InterviewRoom({ user }) {
     >
       {/* ── 1. ZOOM TOP MEETING BAR ── */}
       <div
+        className="zoom-top-bar"
         style={{
           height: 44,
           flexShrink: 0,
@@ -882,7 +884,7 @@ export default function InterviewRoom({ user }) {
             }}
           >
             <FontAwesomeIcon icon={faShieldHalved} />
-            <span style={{ fontSize: '0.72rem' }}>Prova SSL</span>
+            <span className="zoom-top-text" style={{ fontSize: '0.72rem' }}>Prova SSL</span>
           </button>
 
           {/* Recording Badge */}
@@ -907,8 +909,8 @@ export default function InterviewRoom({ user }) {
             </span>
           </div>
 
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
-            {isRtl ? `مقابلة عمل تقنية — ${isSara ? 'سارة' : 'أحمد'}` : `Technical Interview — ${isSara ? 'Sara' : 'Ahmed'}`}
+          <span className="zoom-top-title" style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+            {isRtl ? `مقابلة عمل — ${isSara ? 'سارة' : 'أحمد'}` : `Technical Interview — ${isSara ? 'Sara' : 'Ahmed'}`}
           </span>
         </div>
 
@@ -919,7 +921,7 @@ export default function InterviewRoom({ user }) {
         </div>
 
         {/* Right: View Button (Speaker / Gallery View) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div className="zoom-view-btn" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <button
             style={{
               display: 'flex',
@@ -997,6 +999,7 @@ export default function InterviewRoom({ user }) {
                 initial={{ opacity: 0, scale: 0.95, y: 8, x: '-50%' }}
                 animate={{ opacity: 1, scale: 1, y: 0, x: '-50%' }}
                 exit={{ opacity: 0, scale: 0.95, y: 8, x: '-50%' }}
+                className="zoom-done-speaking-btn"
                 style={{
                   position: 'absolute',
                   bottom: '4.8rem',
@@ -1046,13 +1049,14 @@ export default function InterviewRoom({ user }) {
                 animate={{ opacity: 1, y: 0, x: '-50%' }}
                 exit={{ opacity: 0, y: 10, x: '-50%' }}
                 transition={{ duration: 0.18 }}
+                className="zoom-captions-box"
                 style={{
                   position: 'absolute',
                   bottom: 22,
                   left: '50%',
                   transform: 'translateX(-50%)',
                   maxWidth: '76%',
-                  width: 'max-content',
+                  width: 'fit-content',
                   padding: '0.6rem 1.4rem',
                   borderRadius: 14,
                   background: 'rgba(27, 42, 65, 0.92)',
@@ -1080,12 +1084,9 @@ export default function InterviewRoom({ user }) {
 
         {/* Candidate Self View Tile (Picture-in-Picture on Top-Left) */}
         <div
+          className="candidate-pip-window"
           style={{
             position: 'absolute',
-            top: 16,
-            left: 16,
-            width: 200,
-            height: 125,
             zIndex: 40,
             borderRadius: 12,
             overflow: 'hidden',
@@ -1149,12 +1150,11 @@ export default function InterviewRoom({ user }) {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 340, opacity: 0 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="zoom-chat-drawer"
               style={{
                 position: 'absolute',
                 top: 12,
                 bottom: 12,
-                right: 12,
-                width: 330,
                 borderRadius: 16,
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
@@ -1226,8 +1226,8 @@ export default function InterviewRoom({ user }) {
 
       {/* ── 4. ICONIC BOTTOM TOOLBAR ── */}
       <div
+        className="zoom-bottom-toolbar"
         style={{
-          height: 68,
           flexShrink: 0,
           background: 'var(--bg-surface)',
           borderTop: '1px solid var(--border-subtle)',
@@ -1235,7 +1235,6 @@ export default function InterviewRoom({ user }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 1.25rem',
           zIndex: 50,
         }}
       >
@@ -1260,11 +1259,13 @@ export default function InterviewRoom({ user }) {
         {/* Center: Meeting Actions (Security, Participants, Chat, Captions, Raise Hand) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
           <ZoomButton
+            className="zoom-btn-desktop-only"
             icon={faShieldHalved}
             label={isRtl ? 'الأمان' : 'Security'}
             onClick={() => setShowSecurityModal((p) => !p)}
           />
           <ZoomButton
+            className="zoom-btn-desktop-only"
             icon={faUsers}
             label={isRtl ? 'المشاركون (2)' : 'Participants (2)'}
             onClick={() => toast(isRtl ? 'المشاركون: أنت و المحاور' : 'Participants: You and Interviewer')}

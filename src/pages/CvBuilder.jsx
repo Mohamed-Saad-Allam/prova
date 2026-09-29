@@ -350,7 +350,7 @@ export default function CvBuilder({ user }) {
           {activeMode === 'voice' && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
               gap: '1.5rem',
               alignItems: 'flex-start',
             }}>

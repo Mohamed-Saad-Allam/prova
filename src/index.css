@@ -544,9 +544,221 @@ h4 { font-size: 1.1rem; font-weight: 600; }
   padding: 0 1.5rem;
 }
 
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .main-content { padding: 0 1rem; }
-  .card { padding: 1.2rem; }
-  .btn-xl { padding: 0.85rem 2rem; font-size: 1rem; }
+/* ══════════════════════════════════════════
+   RESPONSIVE DESIGN SYSTEM
+══════════════════════════════════════════ */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
 }
+
+/* ── Landing Page Grids (Default Desktop) ── */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.interviewers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.cta-banner-box {
+  padding: 3.5rem 2.5rem;
+  border-radius: 28px;
+}
+
+/* ── Tablet Breakpoint (<= 1024px) ── */
+@media (max-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2.75rem !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.85rem !important;
+  }
+  .interviewers-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .comparison-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}
+
+/* ── Mobile Landscape & Standard (<= 768px) ── */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0 1rem !important;
+  }
+  .card {
+    padding: 1.25rem !important;
+    border-radius: 18px !important;
+  }
+  .btn-xl {
+    padding: 0.85rem 1.4rem !important;
+    font-size: 0.95rem !important;
+  }
+  .cta-banner-box {
+    padding: 2.25rem 1.25rem !important;
+    border-radius: 20px !important;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 6vw, 2.5rem) !important;
+    line-height: 1.25 !important;
+  }
+  h2 {
+    font-size: clamp(1.45rem, 5vw, 1.95rem) !important;
+    line-height: 1.3 !important;
+  }
+  section {
+    padding: 3.5rem 1rem !important;
+  }
+}
+
+/* ── Small Mobile (<= 480px) ── */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.6rem !important;
+  }
+  .stats-grid .card {
+    padding: 0.85rem 0.65rem !important;
+  }
+  .stats-grid .card div:first-child {
+    font-size: 1.45rem !important;
+  }
+  .stats-grid .card p {
+    font-size: 0.72rem !important;
+  }
+  .hero-grid {
+    gap: 2rem !important;
+  }
+  .btn-xl {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── Zoom Live Interview Room Styling ── */
+.candidate-pip-window {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 190px;
+  height: 120px;
+  z-index: 40;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-default);
+  background: #000;
+}
+
+.zoom-chat-drawer {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: 12px;
+  width: 330px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xl);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+}
+
+.zoom-bottom-toolbar {
+  height: 68px;
+  padding: 0 1.25rem;
+}
+
+.zoom-toolbar-btn {
+  min-width: 52px;
+}
+
+@media (max-width: 768px) {
+  .zoom-top-title {
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 640px) {
+  .candidate-pip-window {
+    width: 110px !important;
+    height: 70px !important;
+    top: 8px !important;
+    left: 8px !important;
+    border-radius: 8px !important;
+  }
+  .zoom-toolbar-btn {
+    min-width: 36px !important;
+    padding: 0.35rem 0.25rem !important;
+  }
+  .zoom-btn-label {
+    display: none !important;
+  }
+  .zoom-chat-drawer {
+    width: calc(100% - 16px) !important;
+    right: 8px !important;
+    left: 8px !important;
+    top: 8px !important;
+    bottom: 8px !important;
+    border-radius: 12px !important;
+  }
+  .zoom-bottom-toolbar {
+    height: 56px !important;
+    padding: 0 0.5rem !important;
+  }
+  .zoom-top-text {
+    display: none !important;
+  }
+  .zoom-view-btn {
+    display: none !important;
+  }
+  .zoom-captions-box {
+    max-width: 90% !important;
+    padding: 0.45rem 0.9rem !important;
+    font-size: 0.8rem !important;
+    bottom: 14px !important;
+  }
+  .zoom-done-speaking-btn {
+    bottom: 4rem !important;
+  }
+  .zoom-done-speaking-btn button {
+    padding: 0.45rem 1rem !important;
+    font-size: 0.78rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .zoom-btn-desktop-only {
+    display: none !important;
+  }
+  .zoom-top-title {
+    display: none !important;
+  }
+}
+

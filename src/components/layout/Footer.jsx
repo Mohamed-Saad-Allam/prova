@@ -18,6 +18,7 @@ export default function Footer() {
       }}
     >
       <div
+        className="footer-inner"
         style={{
           maxWidth: 1200,
           margin: '0 auto',
@@ -38,9 +39,9 @@ export default function Footer() {
             src={logoImg}
             alt="Prova Logo"
             style={{
-              height: 52,
+              height: 48,
               width: 'auto',
-              maxHeight: 52,
+              maxHeight: 48,
               objectFit: 'contain',
               filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.06))',
               transition: 'transform 0.2s ease',
@@ -98,6 +99,17 @@ export default function Footer() {
           </a>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .footer-inner {
+            flex-direction: column !important;
+            justify-content: center !important;
+            text-align: center !important;
+            gap: 1.1rem !important;
+          }
+        }
+      `}</style>
     </footer>
   );
 }
