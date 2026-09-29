@@ -173,19 +173,45 @@ export default function CvBuilder({ user }) {
     try {
       const res = await parseAndGenerateUploadedCV(file, user?.id, isRtl ? 'ar' : 'en');
       if (res?.structuredCv) {
+        const s = res.structuredCv;
         setCvData(prev => {
+          const formatContact = (contactVal) => {
+            if (!contactVal) return '';
+            if (typeof contactVal === 'string') return contactVal;
+            if (typeof contactVal === 'object') {
+              return Object.values(contactVal).filter(Boolean).join(' | ');
+            }
+            return String(contactVal);
+          };
+
+          const formatCommaList = (listVal) => {
+            if (!listVal) return '';
+            if (typeof listVal === 'string') return listVal;
+            if (Array.isArray(listVal)) return listVal.filter(Boolean).join(', ');
+            return String(listVal);
+          };
+
           const next = {
             ...prev,
-            ...res.structuredCv,
-            careerHistory: Array.isArray(res.structuredCv.careerHistory) && res.structuredCv.careerHistory.length > 0
-              ? res.structuredCv.careerHistory
-              : prev.careerHistory,
-            educationList: Array.isArray(res.structuredCv.educationList) && res.structuredCv.educationList.length > 0
-              ? res.structuredCv.educationList
-              : prev.educationList,
-            projectsCertifications: Array.isArray(res.structuredCv.projectsCertifications) && res.structuredCv.projectsCertifications.length > 0
-              ? res.structuredCv.projectsCertifications
-              : prev.projectsCertifications,
+            name: s.name || prev.name || 'Candidate Name',
+            jobTitle: s.jobTitle || prev.jobTitle || 'Professional Specialist',
+            address: s.address || prev.address || '',
+            contact: formatContact(s.contact) || prev.contact || '',
+            links: s.links || prev.links || '',
+            careerObjective: s.careerObjective || prev.careerObjective || '',
+            careerHistory: Array.isArray(s.careerHistory) && s.careerHistory.length > 0
+              ? s.careerHistory
+              : prev.careerHistory || [],
+            technicalSkills: formatCommaList(s.technicalSkills) || prev.technicalSkills || '',
+            methodologies: formatCommaList(s.methodologies) || prev.methodologies || '',
+            coreCompetencies: formatCommaList(s.coreCompetencies) || prev.coreCompetencies || '',
+            educationList: Array.isArray(s.educationList) && s.educationList.length > 0
+              ? s.educationList
+              : prev.educationList || [],
+            projectsCertifications: Array.isArray(s.projectsCertifications) && s.projectsCertifications.length > 0
+              ? s.projectsCertifications
+              : prev.projectsCertifications || [],
+            photoUrl: s.photoUrl || prev.photoUrl || null,
           };
           try {
             localStorage.setItem('prova_cv_draft', JSON.stringify(next));

@@ -63,28 +63,35 @@ async function callGroq(prompt, systemInstruction = '', timeoutMs = 3000) {
 }
 
 /**
- * Call Gemini with multi-model fallback, fast timeout & quota circuit breaker
+ * Call Gemini with multi-model fallback, configurable timeout & quota circuit breaker
  */
-async function callGemini(prompt, systemInstruction = '', timeoutMs = 2500, maxOutputTokens = 250) {
+async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxOutputTokens = 1000, responseJson = false) {
   const activeAI = getActiveGeminiAI();
   if (!activeAI) return null;
   if (Date.now() < geminiQuotaBlockedUntil) return null;
 
+  // Active verified Gemini models in priority order
   const candidateModels = [
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash',
     'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
+    'gemini-2.5-flash',
   ];
 
   for (const modelName of candidateModels) {
     try {
+      const genConfig = {
+        maxOutputTokens: maxOutputTokens,
+        temperature: 0.3,
+      };
+      if (responseJson) {
+        genConfig.responseMimeType = 'application/json';
+      }
+
       const model = activeAI.getGenerativeModel({
         model: modelName,
         systemInstruction: systemInstruction || undefined,
-        generationConfig: {
-          maxOutputTokens: maxOutputTokens,
-          temperature: 0.7,
-        },
+        generationConfig: genConfig,
       });
 
       const genPromise = model.generateContent(prompt).then((res) => {
@@ -129,6 +136,46 @@ async function fileToBase64(file) {
 }
 
 /**
+ * Helper: Render PDF pages to high-resolution JPEG images for multimodal AI OCR
+ */
+async function extractPDFPagesAsImages(file) {
+  if (typeof document === 'undefined') return [];
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjsLib = await import('pdfjs-dist');
+    if (pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '4.10.38'}/build/pdf.worker.min.mjs`;
+    }
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer),
+      useSystemFonts: true,
+      isEvalSupported: false,
+    });
+    const pdf = await loadingTask.promise;
+    const images = [];
+    const maxPages = Math.min(pdf.numPages, 2);
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = dataUrl.split(',')[1];
+        if (base64) images.push(base64);
+      }
+    }
+    return images;
+  } catch (err) {
+    console.warn('PDF to image conversion notice:', err);
+    return [];
+  }
+}
+
+/**
  * Helper: Extract text from PDF using pdfjs-dist
  */
 async function extractTextFromPDF(file) {
@@ -163,17 +210,26 @@ async function extractTextFromPDF(file) {
 }
 
 /**
- * Fallback regex extractor for offline or failed AI calls
+ * Fallback regex extractor for offline or failed AI calls (clean structure)
  */
 function fallbackExtractCVFromText(text, fileName = '') {
-  const cleanName = fileName.replace(/\.[^/.]+$/, '').trim();
+  let cleanName = fileName.replace(/\.[^/.]+$/, '').trim();
+  const isGenericWord = /^(cv|resume|curriculum|vitae|سيرة|ذاتية|السيرة)$/i.test(cleanName);
+  if (isGenericWord) cleanName = 'Candidate Name';
+
   const emailMatch = text ? text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/) : null;
   const phoneMatch = text ? text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/) : null;
   const linkedinMatch = text ? text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+/) : null;
   const githubMatch = text ? text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[a-zA-Z0-9_-]+/) : null;
 
   const lines = text ? text.split('\n').map(l => l.trim()).filter(Boolean) : [];
-  const extractedName = lines[0] && lines[0].length < 40 && !lines[0].includes('@') ? lines[0] : cleanName;
+  let extractedName = cleanName;
+  for (const l of lines.slice(0, 5)) {
+    if (l.length >= 3 && l.length < 35 && !l.includes('@') && !/^(cv|resume|curriculum|vitae|سيرة)$/i.test(l)) {
+      extractedName = l;
+      break;
+    }
+  }
 
   const linksList = [];
   if (linkedinMatch) linksList.push(linkedinMatch[0]);
@@ -185,61 +241,38 @@ function fallbackExtractCVFromText(text, fileName = '') {
 
   return {
     name: extractedName || 'Candidate Name',
-    jobTitle: lines[1] && lines[1].length < 50 ? lines[1] : 'Professional Specialist',
+    jobTitle: 'Professional Specialist',
     address: 'Cairo, Egypt',
-    contact: contactList.join(' | ') || 'contact@example.com | +20 100 000 0000',
-    links: linksList.join(' | ') || 'linkedin.com/in/profile | github.com/profile',
-    careerObjective: lines.slice(1, 4).join(' ') || 'Accomplished and results-oriented professional with extensive experience delivering scalable solutions, driving team efficiency, and achieving business outcomes.',
-    careerHistory: [
-      {
-        title: lines[1] && lines[1].length < 50 ? lines[1] : 'Professional Specialist',
-        company: 'Enterprise Solutions',
-        location: 'Cairo, Egypt',
-        dates: '2021 – Present',
-        duties: [
-          'Spearheaded core project initiatives, increasing operational performance and delivery velocity by 30%.',
-          'Coordinated cross-functional project deliverables ensuring on-time milestone execution.',
-          'Optimized core workflows and reduced turnaround time for key stakeholders by 25%.',
-        ],
-      },
-    ],
-    technicalSkills: 'Technical Analysis, Project Management, Quality Assurance, Cloud Platforms, System Architecture',
-    methodologies: 'Agile/Scrum, Continuous Integration (CI/CD), Performance Optimization, SDLC',
-    coreCompetencies: 'Leadership, Strategic Communication, Problem Solving, Analytical Thinking',
-    educationList: [
-      {
-        degree: 'Bachelor Degree in Field of Study',
-        institution: 'University / Higher Institute',
-        dates: 'Graduated',
-        grade: 'Very Good with Honors',
-      },
-    ],
-    projectsCertifications: [
-      {
-        title: 'Professional Industry Certification',
-        issuer: 'Authorized Certification Body',
-        date: '2023',
-        detail: 'Demonstrated proficiency in core modern methodologies and project standards.',
-      },
-    ],
+    contact: contactList.join(' | ') || (emailMatch ? emailMatch[0] : 'contact@example.com'),
+    links: linksList.join(' | ') || '',
+    careerObjective: 'Accomplished professional with extensive experience delivering high-impact solutions, collaborating across cross-functional teams, and driving measurable business results.',
+    careerHistory: [],
+    technicalSkills: '',
+    methodologies: '',
+    coreCompetencies: '',
+    educationList: [],
+    projectsCertifications: [],
   };
 }
 
 /**
- * 1. Parse uploaded CV file and generate structured CV HTML
+ * 1. Parse uploaded CV file and generate structured CV matching Exact ATS Template
  */
 export async function parseAndGenerateUploadedCV(file, userId, lang = 'ar') {
   let extractedText = '';
-  let base64Data = '';
+  let pageImages = [];
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   const isImage = file.type?.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name);
 
   try {
     if (isPdf) {
+      // 1. Convert PDF pages to high-res images for multimodal vision OCR
+      pageImages = await extractPDFPagesAsImages(file);
+      // 2. Also extract raw text as auxiliary context
       extractedText = await extractTextFromPDF(file) || '';
-      base64Data = await fileToBase64(file);
     } else if (isImage) {
-      base64Data = await fileToBase64(file);
+      const b64 = await fileToBase64(file);
+      if (b64) pageImages.push(b64);
     } else {
       extractedText = await file.text();
     }
@@ -249,99 +282,135 @@ export async function parseAndGenerateUploadedCV(file, userId, lang = 'ar') {
 
   const promptText = `
 You are an Elite Executive ATS Resume Architect & Translator.
-Analyze the provided resume file/text carefully.
-Extract, parse, and translate ALL content from any language (Arabic, English, French, etc.) into 100% professional English, structured for an Executive ATS Single-Column Gold Standard Resume.
+Analyze the provided resume document carefully (it may be in Arabic, English, or any language, and may contain graphic or complex layouts).
 
-${extractedText ? `EXTRACTED TEXT FROM RESUME:\n---\n${extractedText.slice(0, 15000)}\n---` : ''}
+CORE OBJECTIVES:
+1. Accurately identify and extract ALL candidate details.
+2. TRANSLATE ALL text from Arabic or any other language into 100% professional, fluent, executive English.
+3. PRESERVE AND FIT into our exact single-column executive ATS schema.
+4. For work experience bullet points ("duties"): EVERY bullet point MUST start with a strong past-tense action verb (e.g. "Developed", "Designed", "Managed", "Spearheaded", "Engineered", "Implemented", "Architected") and include measurable results/metrics wherever possible. NO personal pronouns ("I", "my").
+5. DO NOT invent fake companies or fake experience. Extract the candidate's real data truthfully.
 
-STRICT ATS TRANSFORMATION RULES:
-1. Translate all contents into fluent, corporate, ATS-compliant English.
-2. Structure:
-   - "name": Full candidate name.
-   - "jobTitle": Professional title in English.
-   - "address": "City, Country".
-   - "contact": "email@domain.com | +phoneNumber".
-   - "links": "linkedin.com/in/... | github.com/...".
-   - "careerObjective": Maximum 2 lines summarizing years of experience, core domains, and key quantified business impact in English.
-   - "careerHistory": Array of work experiences:
-     * "title": Job title in English.
-     * "company": Company name.
-     * "location": City, Country.
-     * "dates": e.g. "Jan 2021 – Present".
-     * "duties": Array of 3-5 bullet points. EVERY bullet point MUST start with a strong past-tense action verb (e.g. "Developed", "Spearheaded", "Architected", "Engineered", "Optimized", "Designed", "Led") and include quantifiable metrics (%) wherever possible. NO personal pronouns ("I", "my").
-   - "technicalSkills": Comma-separated list of hard tools, technologies, and software.
-   - "methodologies": Comma-separated list of methodologies (e.g. Agile/Scrum, CI/CD, Microservices, System Architecture).
-   - "coreCompetencies": Comma-separated soft skills and leadership traits.
-   - "educationList": Array of { "degree", "institution", "dates", "grade" }.
-   - "projectsCertifications": Array of { "title", "issuer", "date", "detail" }.
+${extractedText ? `AUXILIARY EXTRACTED TEXT FROM DOCUMENT:\n---\n${extractedText.slice(0, 10000)}\n---` : ''}
 
-CRITICAL: Return ONLY a valid JSON object without markdown fences, formatted exactly as:
+RETURN STRICTLY A SINGLE VALID JSON OBJECT (no markdown backticks, no commentary) matching this exact schema:
 {
-  "raw_text": "Clean plain-text English summary of the candidate profile",
-  "structuredCv": {
-    "name": "Full Name",
-    "jobTitle": "Target Job Title",
-    "address": "City, Country",
-    "contact": "email@example.com | +20 100 123 4567",
-    "links": "linkedin.com/in/username | github.com/username",
-    "careerObjective": "2-line maximum professional summary in English.",
-    "careerHistory": [
-      {
-        "title": "Role Title",
-        "company": "Company Name",
-        "location": "City, Country",
-        "dates": "Jan 2021 – Present",
-        "duties": [
-          "Developed high-throughput system reducing latency by 35% across 200K+ daily users.",
-          "Spearheaded cross-functional delivery team, shortening sprint turnaround time by 25%."
-        ]
-      }
-    ],
-    "technicalSkills": "JavaScript, React, Node.js, Python, PostgreSQL, AWS, Docker",
-    "methodologies": "Agile/Scrum, CI/CD, Microservices Architecture, TDD",
-    "coreCompetencies": "Cross-Functional Leadership, Problem Solving, Analytical Thinking",
-    "educationList": [
-      { "degree": "Bachelor of Science", "institution": "University Name", "dates": "2016 – 2020", "grade": "GPA 3.8 / 4.0" }
-    ],
-    "projectsCertifications": [
-      { "title": "Certified Professional", "issuer": "Certification Authority", "date": "2023", "detail": "Certified in cloud architecture and scalable systems." }
-    ]
-  }
+  "name": "Candidate Full Name in English (e.g. Ahmed Deny)",
+  "jobTitle": "Target or Current Job Title in English (e.g. Senior Graphic Designer & Web Developer)",
+  "address": "City, Country (e.g. Riyadh, Saudi Arabia or Cairo, Egypt)",
+  "contact": "email@domain.com | +phone",
+  "links": "portfolio website or linkedin/github if present",
+  "careerObjective": "2-3 concise sentences in professional English summarizing core expertise, years of experience, and main value proposition.",
+  "careerHistory": [
+    {
+      "title": "Job Title in English",
+      "company": "Company / Organization Name",
+      "location": "City, Country or Remote",
+      "dates": "Date range (e.g. 2019 – Present or Jan 2021 – Dec 2023)",
+      "duties": [
+        "Action verb + achievement/responsibility in English",
+        "Action verb + achievement/responsibility in English"
+      ]
+    }
+  ],
+  "technicalSkills": "Comma-separated list of technical tools and software (e.g. Adobe Photoshop, Adobe Illustrator, WordPress, WooCommerce, MySQL)",
+  "methodologies": "Comma-separated methodologies and concepts (e.g. UI/UX Design, Responsive Web Design, REST APIs, Agile)",
+  "coreCompetencies": "Comma-separated professional strengths (e.g. Creative Direction, Web Development, Client Communication, Problem Solving)",
+  "educationList": [
+    {
+      "degree": "Degree and Major in English (e.g. Bachelor of Computer Science and Information)",
+      "institution": "University / College / Institute Name",
+      "dates": "Graduation year or date range (e.g. 2018)",
+      "grade": "Grade / Honors if mentioned, else empty string"
+    }
+  ],
+  "projectsCertifications": [
+    {
+      "title": "Certification or Key Project Name in English",
+      "issuer": "Issuing Authority / Platform",
+      "date": "Year",
+      "detail": "1 sentence describing key skills or topics covered"
+    }
+  ]
 }
 `.trim();
 
   let aiPayload;
-  if (base64Data) {
-    const mimeType = isPdf ? 'application/pdf' : (file.type || 'image/png');
-    aiPayload = [
-      {
+  if (pageImages.length > 0) {
+    const parts = [];
+    pageImages.forEach(imgB64 => {
+      parts.push({
         inlineData: {
-          mimeType,
-          data: base64Data,
-        },
-      },
-      promptText,
-    ];
+          mimeType: 'image/jpeg',
+          data: imgB64,
+        }
+      });
+    });
+    parts.push(promptText);
+    aiPayload = parts;
   } else {
     aiPayload = promptText;
   }
 
   let result = null;
-  const aiText = await callGemini(aiPayload, '', 10000, 2500);
-  if (aiText) {
-    const cleanAiText = aiText.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
-    const match = cleanAiText.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        result = JSON.parse(match[0]);
-      } catch (_e) {
-        console.warn('JSON parse error on AI output:', _e);
+
+  // 1. Try Gemini Multimodal / Text with 25s timeout and JSON output
+  try {
+    const aiText = await callGemini(
+      aiPayload,
+      'You are an expert ATS CV parser and translator. Always return valid JSON adhering to the requested schema.',
+      25000,
+      4000,
+      true
+    );
+    if (aiText) {
+      const cleanAiText = aiText.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
+      const match = cleanAiText.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]);
+          const cvObj = parsed.structuredCv || parsed;
+          if (cvObj && (cvObj.name || cvObj.jobTitle || (Array.isArray(cvObj.careerHistory) && cvObj.careerHistory.length > 0))) {
+            result = {
+              raw_text: `${cvObj.name || ''} - ${cvObj.jobTitle || ''}\n${cvObj.contact || ''}\n${cvObj.careerObjective || ''}`,
+              structuredCv: cvObj,
+            };
+          }
+        } catch (_e) {
+          console.warn('JSON parse error on Gemini output:', _e);
+        }
       }
+    }
+  } catch (geminiErr) {
+    console.warn('Gemini CV parsing error:', geminiErr);
+  }
+
+  // 2. Fallback to Groq (Llama 3.3 70B) if Gemini failed and text exists
+  if (!result && extractedText && extractedText.length > 20) {
+    try {
+      const groqPrompt = `${promptText}\n\nDOCUMENT TEXT TO TRANSLATE AND PARSE:\n${extractedText.slice(0, 10000)}`;
+      const groqRes = await callGroq(groqPrompt, 'You are an ATS CV parser. Return strictly valid JSON without markdown fences.', 15000);
+      if (groqRes) {
+        const cleanGroq = groqRes.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
+        const m = cleanGroq.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          const cvObj = parsed.structuredCv || parsed;
+          if (cvObj && (cvObj.name || cvObj.jobTitle)) {
+            result = {
+              raw_text: `${cvObj.name || ''} - ${cvObj.jobTitle || ''}\n${cvObj.contact || ''}`,
+              structuredCv: cvObj,
+            };
+          }
+        }
+      }
+    } catch (groqErr) {
+      console.warn('Groq CV fallback error:', groqErr);
     }
   }
 
-  // Fallback if AI response missing or invalid
-  if (!result || !result.structuredCv || !result.structuredCv.name) {
+  // 3. Fallback: Clean regex extractor (without dumping raw text into summary)
+  if (!result || !result.structuredCv) {
     const fallbackCv = fallbackExtractCVFromText(extractedText, file.name);
     result = {
       raw_text: extractedText || `${fallbackCv.name} - Uploaded Resume`,
