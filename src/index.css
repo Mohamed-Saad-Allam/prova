@@ -583,7 +583,7 @@ html, body {
   border-radius: 28px;
 }
 
-/* ── Tablet Breakpoint (<= 1024px) ── */
+/* ── Tablet & Mobile Hero Grid Breakpoint (<= 1024px) ── */
 @media (max-width: 1024px) {
   .hero-grid {
     grid-template-columns: 1fr !important;
@@ -600,6 +600,62 @@ html, body {
   .comparison-grid {
     grid-template-columns: 1fr !important;
     gap: 1.5rem !important;
+  }
+
+  /* Centering Hero Text & Action Buttons */
+  .hero-text-col {
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .hero-eyebrow-container {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+  .hero-eyebrow {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .hero-headline {
+    text-align: center !important;
+  }
+  .hero-subtitle {
+    text-align: center !important;
+    margin-inline: auto !important;
+  }
+  .hero-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    gap: 0.75rem !important;
+  }
+  .hero-actions .btn {
+    width: 100% !important;
+    max-width: 380px !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .hero-social-proof {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin: 0 auto !important;
+    gap: 0.5rem !important;
+  }
+  .hero-avatars-row {
+    justify-content: center !important;
+  }
+  .hero-stars-row {
+    justify-content: center !important;
+  }
+  .hero-rating-box {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
   }
 }
 

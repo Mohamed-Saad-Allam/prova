@@ -240,11 +240,12 @@ export default function Landing({ user, userRole }) {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
+                className="hero-text-col"
                 style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}
               >
                 {/* Eyebrow Text (Clean text without capsule container) */}
-                <motion.div variants={fadeUp}>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--c-coral)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <motion.div variants={fadeUp} className="hero-eyebrow-container">
+                  <div className="hero-eyebrow" style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--c-coral)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                     <span>✨</span>
                     <span>{isRtl ? 'منصة المقابلات الذكية لكافة التخصصات والمهن' : 'Universal AI Voice Interviews for All Professions'}</span>
                   </div>
@@ -252,7 +253,7 @@ export default function Landing({ user, userRole }) {
 
                 {/* Headline */}
                 <motion.div variants={fadeUp}>
-                  <h1 style={{ fontSize: 'clamp(2.1rem, 4.2vw, 3.3rem)', lineHeight: 1.2, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
+                  <h1 className="hero-headline" style={{ fontSize: 'clamp(2.1rem, 4.2vw, 3.3rem)', lineHeight: 1.2, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
                     {isRtl ? 'تدرّب على مقابلتك في أي تخصص وظيفي كأنك أمام ' : 'Rehearse for your interview in any profession with the '}
                     <span className="text-gradient">
                       {isRtl ? 'مدير التوظيف الحقيقي' : 'Real Hiring Lead'}
@@ -263,6 +264,7 @@ export default function Landing({ user, userRole }) {
                 {/* Subtitle */}
                 <motion.p
                   variants={fadeUp}
+                  className="hero-subtitle"
                   style={{
                     color: 'var(--text-secondary)',
                     fontSize: '1.05rem',
@@ -277,7 +279,7 @@ export default function Landing({ user, userRole }) {
                 </motion.p>
 
                 {/* Adaptive Action Bar (User vs Guest) */}
-                <motion.div variants={fadeUp} style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.5rem' }}>
+                <motion.div variants={fadeUp} className="hero-actions" style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.5rem' }}>
                   {user ? (
                     <>
                       <Link to="/services" className="btn btn-primary btn-xl" style={{ gap: '0.65rem' }}>
@@ -312,8 +314,8 @@ export default function Landing({ user, userRole }) {
                 </motion.div>
 
                 {/* Social Proof & Metrics */}
-                <motion.div variants={fadeUp} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
-                  <div style={{ display: 'flex' }}>
+                <motion.div variants={fadeUp} className="hero-social-proof" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                  <div className="hero-avatars-row" style={{ display: 'flex' }}>
                     {['#E8825A', '#1B2A41', '#2A9D8F', '#E76F51', '#457B9D'].map((bg, idx) => (
                       <div
                         key={idx}
@@ -337,8 +339,8 @@ export default function Landing({ user, userRole }) {
                       </div>
                     ))}
                   </div>
-                  <div>
-                    <div style={{ display: 'flex', gap: 3, color: '#f59e0b', fontSize: '0.8rem', marginBottom: 2 }}>
+                  <div className="hero-rating-box">
+                    <div className="hero-stars-row" style={{ display: 'flex', gap: 3, color: '#f59e0b', fontSize: '0.8rem', marginBottom: 2 }}>
                       {[1, 2, 3, 4, 5].map((i) => (
                         <FontAwesomeIcon key={i} icon={faStar} />
                       ))}
@@ -1418,11 +1420,67 @@ export default function Landing({ user, userRole }) {
       <Footer />
 
       <style>{`
-        @media (max-width: 900px) {
+        @media (max-width: 992px) {
           .hero-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .interviewers-grid { grid-template-columns: 1fr !important; }
           .comparison-grid { grid-template-columns: 1fr !important; }
+
+          /* ── Centering Hero Content & Buttons on Mobile & Tablets ── */
+          .hero-text-col {
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .hero-eyebrow-container {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+          }
+          .hero-eyebrow {
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .hero-headline {
+            text-align: center !important;
+          }
+          .hero-subtitle {
+            text-align: center !important;
+            margin-inline: auto !important;
+          }
+          .hero-actions {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            gap: 0.75rem !important;
+          }
+          .hero-actions .btn {
+            width: 100% !important;
+            max-width: 380px !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .hero-social-proof {
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            margin: 0 auto !important;
+            gap: 0.5rem !important;
+          }
+          .hero-avatars-row {
+            justify-content: center !important;
+          }
+          .hero-stars-row {
+            justify-content: center !important;
+          }
+          .hero-rating-box {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+          }
         }
         @media (max-width: 480px) {
           .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 0.6rem !important; }
