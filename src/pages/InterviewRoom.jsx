@@ -310,17 +310,18 @@ export default function InterviewRoom({ user }) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        // Ultra-responsive conversational turn-taking: 850ms natural human pause threshold
+        // Generous, natural conversational pause threshold (3.2s for replies, 2.2s for short acknowledgements)
+        // Gives candidate ample time to think, pause, and breathe without being interrupted prematurely
         if (clean.length >= 2) {
-          const SILENCE_MS = 850;
+          const SILENCE_MS = clean.length > 12 ? 3200 : 2200;
           let remaining = SILENCE_MS;
           setAutoSendCountdown(remaining);
 
           countdownIntervalRef.current = setInterval(() => {
-            remaining -= 50;
+            remaining -= 100;
             setAutoSendCountdown(Math.max(0, remaining));
             if (remaining <= 0) clearInterval(countdownIntervalRef.current);
-          }, 50);
+          }, 100);
 
           silenceTimerRef.current = setTimeout(() => {
             clearInterval(countdownIntervalRef.current);
