@@ -17,8 +17,61 @@ import Settings     from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
 
 import { useLocation } from 'react-router-dom';
+import logoImg from './assets/logo.png';
 
 import BannedScreen from './components/security/BannedScreen';
+
+/* ── Reusable Full Page Brand Loader ── */
+function FullPageLoader({ message }) {
+  return (
+    <div style={{
+      height: '100dvh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-base)',
+      flexDirection: 'column',
+    }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '1.25rem',
+      }}>
+        <img
+          src={logoImg}
+          alt="Prova"
+          onError={(e) => { e.currentTarget.src = '/logo.png'; }}
+          style={{
+            height: '42px',
+            width: 'auto',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.06))',
+          }}
+        />
+        <div style={{
+          width: 28,
+          height: 28,
+          border: '2.5px solid var(--border-subtle)',
+          borderTopColor: 'var(--c-coral)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        {message && (
+          <p style={{
+            fontSize: '0.88rem',
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            margin: 0,
+          }}>
+            {message}
+          </p>
+        )}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 /* ── Auth & Security Guard ── */
 function Protected({ user, children }) {
@@ -50,24 +103,7 @@ function Protected({ user, children }) {
   }
 
   if (profileStatus.loading) {
-    return (
-      <div style={{
-        height: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-base)',
-      }}>
-        <div style={{
-          width: 32, height: 32,
-          border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--c-coral)',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (profileStatus.isBanned) {
@@ -88,24 +124,7 @@ function CvGate({ user, children }) {
   }, [user]);
 
   if (hasCv === null) {
-    return (
-      <div style={{
-        height: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-base)',
-      }}>
-        <div style={{
-          width: 32, height: 32,
-          border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--c-coral)',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (!hasCv) return <Navigate to="/cv-builder" replace />;
@@ -151,24 +170,7 @@ function AdminProtected({ user, children }) {
   }
 
   if (isAdmin === null) {
-    return (
-      <div style={{
-        height: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-base)',
-      }}>
-        <div style={{
-          width: 32, height: 32,
-          border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--c-coral)',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   // Strict 403 Forbidden: No backdoor or passcodes
@@ -338,40 +340,7 @@ export default function App() {
 
   // Loading state
   if (user === undefined) {
-    return (
-      <div style={{
-        height: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-base)',
-      }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '1rem',
-        }}>
-          <img
-            src="/logo.svg"
-            alt="Prova"
-            style={{
-              height: '36px',
-              width: 'auto',
-              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.06))',
-            }}
-          />
-          <div style={{
-            width: 28, height: 28,
-            border: '2.5px solid var(--border-subtle)',
-            borderTopColor: 'var(--c-coral)',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }} />
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   return (

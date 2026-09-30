@@ -36,6 +36,7 @@ import {
 import { useInterviewStore } from '../store/interviewStore';
 import AvatarPlayer from '../components/interview/AvatarPlayer';
 import toast from 'react-hot-toast';
+import logoImg from '../assets/logo.png';
 
 // ── Emotion Analyzer ────────────────────────────────────────────────────────
 function analyzeEmotion(text) {
@@ -823,6 +824,18 @@ export default function InterviewRoom({ user }) {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', padding: '1.5rem' }}>
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 24, padding: '2.5rem 2rem', maxWidth: 420, width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', boxShadow: 'var(--shadow-xl)' }}>
+          <img
+            src={logoImg}
+            alt="Prova"
+            onError={(e) => { e.currentTarget.src = '/logo.png'; }}
+            style={{
+              height: '36px',
+              width: 'auto',
+              objectFit: 'contain',
+              marginBottom: '-0.25rem',
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.06))',
+            }}
+          />
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
             background: 'linear-gradient(135deg, rgba(232,130,90,0.18), rgba(232,130,90,0.06))',
