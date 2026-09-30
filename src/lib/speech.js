@@ -369,7 +369,7 @@ async function fetchGeminiNativeTtsBlob(cleanText, voice) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: cleanText }] }],
+          contents: [{ parts: [{ text: `Please read the following text aloud with natural human cadence: ${cleanText}` }] }],
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {

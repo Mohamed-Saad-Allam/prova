@@ -310,9 +310,9 @@ export default function InterviewRoom({ user }) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        // Only start auto-send countdown if user has spoken a real meaningful thought (at least 2 words & 6 characters)
-        if (words.length >= 2 && clean.length >= 6) {
-          const SILENCE_MS = 2600; // 2.6s comfortable pause threshold
+        // Ultra-responsive conversational turn-taking: 850ms natural human pause threshold
+        if (clean.length >= 2) {
+          const SILENCE_MS = 850;
           let remaining = SILENCE_MS;
           setAutoSendCountdown(remaining);
 
@@ -327,7 +327,7 @@ export default function InterviewRoom({ user }) {
             setAutoSendCountdown(0);
             if (
               spokenTextRef.current &&
-              spokenTextRef.current.trim().length >= 6 &&
+              spokenTextRef.current.trim().length >= 2 &&
               !isSubmittingRef.current &&
               !isTerminatedRef.current
             ) {
@@ -335,7 +335,6 @@ export default function InterviewRoom({ user }) {
             }
           }, SILENCE_MS);
         } else {
-          // If only 1 word, do NOT auto-submit; wait for user to continue speaking or click Send
           setAutoSendCountdown(0);
         }
       },
