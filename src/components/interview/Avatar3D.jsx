@@ -402,45 +402,51 @@ function ProceduralModel({
       eyeGazeOut = 0.10;
     }
 
-    // ── 7. Detailed Phonetic Viseme Synthesizer (Realistic Lip Synchronization) ──
-    const speechEnergy = Math.max(audioLevel * 1.15, formants.volume);
-    // Natural human syllable cadence rhythm (~3.8Hz)
-    const syllableWave = Math.sin(time * 19.0) * 0.5 + 0.5;
+    // ── 7. Natural Anatomical Lip & Jaw Speech Synthesizer ──
+    // In human speech, the mandible (jawOpen) is the primary driver of mouth opening (>85%).
+    // When the jaw drops, lower teeth (AvatarTeethLower) and chin naturally follow together.
+    // The lips (mouthLowerDown / mouthUpperUp) must NOT peel off the teeth, which caused
+    // the avatar to look like only its lips were stretching open while the jaw was frozen.
+    const speechEnergy = Math.max(audioLevel * 1.25, formants.volume);
+    // Natural human syllable cadence rhythm (~3.6Hz)
+    const syllableWave = Math.sin(time * 18.0) * 0.5 + 0.5;
 
-    // A. Dynamic Jaw Open (Primary speech driver, following speech energy)
+    // A. Dynamic Jaw Open (Primary speech driver: moves chin, jawbone, and lower teeth in unison)
+    // Smooth dynamic range: 0.12 to 0.56 during vocalization
     const targetJawOpen = isSpeaking
-      ? Math.min(0.48, Math.max(0, speechEnergy * 0.52 * (0.68 + syllableWave * 0.32)))
-      : (isCurious ? 0.025 : 0);
+      ? Math.min(0.58, Math.max(0.12, speechEnergy * 0.65) * (0.68 + syllableWave * 0.32))
+      : (isCurious ? 0.02 : 0);
 
+    const targetJawForward = isSpeaking ? Math.min(0.06, targetJawOpen * 0.12) : 0;
     const targetJawLeft = 0;
     const targetJawRight = 0;
 
-    // B. Natural Lip Openings (Crucial: mouth opening exposes teeth/tongue realistically)
-    const targetLowerDown = isSpeaking ? Math.min(0.34, targetJawOpen * 0.68 + formants.mid * 0.20) : 0;
-    const targetUpperUp = isSpeaking ? Math.min(0.24, targetJawOpen * 0.48 + formants.mid * 0.15) : 0;
+    // B. Lip Depressors & Elevators: Kept at 0! In Ready Player Me, jawOpen already drops the lower lip.
+    // Setting mouthLowerDown/mouthUpperUp pulls the lips away from the teeth like a grimace.
+    const targetLowerDown = 0;
+    const targetUpperUp = 0;
 
-    // C. Rounded Vowels: OO / U / W / O / و / ضمة (Mouth pushes forward into a funnel)
+    // C. Rounded Vowels: OO / U / W / O / و / ضمة (Subtle, natural lip rounding)
     const targetFunnel = isSpeaking
-      ? Math.min(0.46, formants.low * 0.60 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.45 : 0))
-      : (isCurious ? 0.05 : 0);
+      ? Math.min(0.18, formants.low * 0.24 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.18 : 0))
+      : (isCurious ? 0.03 : 0);
     const targetPucker = isSpeaking
-      ? Math.min(0.38, formants.low * 0.50 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.35 : 0))
+      ? Math.min(0.12, formants.low * 0.18 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.12 : 0))
       : 0;
-    const targetJawForward = targetFunnel * 0.25;
 
-    // D. Front Spread Vowels: EE / IH / AY / ي / كسرة (Mouth stretches horizontally)
+    // D. Front Spread Vowels: EE / IH / AY / ي / كسرة (Subtle horizontal stretch)
     const targetStretch = isSpeaking
-      ? Math.min(0.44, formants.highMid * 0.55 + (formants.pseudoPhoneme === 2 ? speechEnergy * 0.40 : 0))
+      ? Math.min(0.15, formants.highMid * 0.20 + (formants.pseudoPhoneme === 2 ? speechEnergy * 0.15 : 0))
       : 0;
 
-    // E. Bilabial & Plosive Closures: M / B / P / ب / م (Lips press together briefly between syllables)
-    const isClosingSyllable = isSpeaking && ((speechEnergy > 0.05 && syllableWave < 0.20) || speechEnergy <= 0.035);
-    const targetMouthClose = isClosingSyllable ? 0.40 : 0;
-    const targetMouthPress = isClosingSyllable ? 0.24 : 0;
+    // E. Bilabial & Plosive Closures: M / B / P / ب / م (Lips touch over the open jaw)
+    const isClosingSyllable = isSpeaking && ((speechEnergy > 0.05 && syllableWave < 0.16) || speechEnergy <= 0.035);
+    const targetMouthClose = isClosingSyllable ? 0.35 : 0;
+    const targetMouthPress = isClosingSyllable ? 0.14 : 0;
 
-    // F. Fricatives & Sibilants: S / SH / T / Z / F / س / ش / ف
-    const targetRollLower = isSpeaking ? Math.min(0.26, formants.treble * 0.34) : 0;
-    const targetShrugLower = isSpeaking ? Math.min(0.24, formants.treble * 0.30) : 0;
+    // F. Fricatives & Sibilants: Kept at 0 to avoid distorting lip contours
+    const targetRollLower = 0;
+    const targetShrugLower = 0;
 
     // ── 8. Emotion Blendshape Modulation ──
     let emotionSmile = 0.10; // Friendly, professional resting smile
@@ -487,8 +493,10 @@ function ProceduralModel({
       emotionBrowInner = 0.08;
     }
 
-    const targetSmileL = emotionSmile;
-    const targetSmileR = emotionSmile;
+    // Soften smile when mouth opens wide to avoid wide gaping grin
+    const smileDampen = Math.max(0.3, 1.0 - targetJawOpen * 1.2);
+    const targetSmileL = emotionSmile * smileDampen;
+    const targetSmileR = emotionSmile * smileDampen;
     const browAccent = isSpeaking ? (formants.mid * 0.12 + formants.treble * 0.06) : 0;
 
     // 9. Realistic Eye Blink Scheduler
@@ -509,34 +517,37 @@ function ProceduralModel({
     for (let i = 0; i < morphMeshes.length; i++) {
       const { influences, idx } = morphMeshes[i];
 
-      // Jaw Mechanics (Smooth, centered, organic)
-      if (idx.jawOpen !== undefined) influences[idx.jawOpen] = THREE.MathUtils.lerp(influences[idx.jawOpen], targetJawOpen, 0.35);
-      if (idx.jawForward !== undefined) influences[idx.jawForward] = THREE.MathUtils.lerp(influences[idx.jawForward], targetJawForward, 0.28);
+      // Jaw Mechanics (Smooth, centered, organic - fast attack for crisp syllables)
+      if (idx.jawOpen !== undefined) {
+        const jawSpeed = targetJawOpen > influences[idx.jawOpen] ? 0.45 : 0.32;
+        influences[idx.jawOpen] = THREE.MathUtils.lerp(influences[idx.jawOpen], targetJawOpen, jawSpeed);
+      }
+      if (idx.jawForward !== undefined) influences[idx.jawForward] = THREE.MathUtils.lerp(influences[idx.jawForward], targetJawForward, 0.25);
       if (idx.jawLeft !== undefined) influences[idx.jawLeft] = THREE.MathUtils.lerp(influences[idx.jawLeft], targetJawLeft, 0.35);
       if (idx.jawRight !== undefined) influences[idx.jawRight] = THREE.MathUtils.lerp(influences[idx.jawRight], targetJawRight, 0.35);
 
-      // Lips Open & Drop (Upper and Lower lips separate naturally with vowels)
-      if (idx.mouthLowerDownLeft !== undefined) influences[idx.mouthLowerDownLeft] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownLeft], targetLowerDown, 0.32);
-      if (idx.mouthLowerDownRight !== undefined) influences[idx.mouthLowerDownRight] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownRight], targetLowerDown, 0.32);
-      if (idx.mouthUpperUpLeft !== undefined) influences[idx.mouthUpperUpLeft] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpLeft], targetUpperUp, 0.32);
-      if (idx.mouthUpperUpRight !== undefined) influences[idx.mouthUpperUpRight] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpRight], targetUpperUp, 0.32);
+      // Lips Open & Drop (Controlled naturally by jawOpen; zero out lip peel morphs)
+      if (idx.mouthLowerDownLeft !== undefined) influences[idx.mouthLowerDownLeft] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownLeft], targetLowerDown, 0.35);
+      if (idx.mouthLowerDownRight !== undefined) influences[idx.mouthLowerDownRight] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownRight], targetLowerDown, 0.35);
+      if (idx.mouthUpperUpLeft !== undefined) influences[idx.mouthUpperUpLeft] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpLeft], targetUpperUp, 0.35);
+      if (idx.mouthUpperUpRight !== undefined) influences[idx.mouthUpperUpRight] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpRight], targetUpperUp, 0.35);
 
-      // Lip Shaping (Rounded & Spread Vowels)
+      // Lip Shaping (Rounded & Spread Vowels - natural subtle modulation)
       if (idx.mouthFunnel !== undefined) influences[idx.mouthFunnel] = THREE.MathUtils.lerp(influences[idx.mouthFunnel], targetFunnel, 0.30);
       if (idx.mouthPucker !== undefined) influences[idx.mouthPucker] = THREE.MathUtils.lerp(influences[idx.mouthPucker], targetPucker, 0.30);
       if (idx.mouthStretchLeft !== undefined) influences[idx.mouthStretchLeft] = THREE.MathUtils.lerp(influences[idx.mouthStretchLeft], targetStretch, 0.30);
       if (idx.mouthStretchRight !== undefined) influences[idx.mouthStretchRight] = THREE.MathUtils.lerp(influences[idx.mouthStretchRight], targetStretch, 0.30);
 
-      // Consonants & Plosives
-      if (idx.mouthClose !== undefined) influences[idx.mouthClose] = THREE.MathUtils.lerp(influences[idx.mouthClose], targetMouthClose, 0.38);
-      if (idx.mouthPressLeft !== undefined) influences[idx.mouthPressLeft] = THREE.MathUtils.lerp(influences[idx.mouthPressLeft], targetMouthPress, 0.32);
-      if (idx.mouthPressRight !== undefined) influences[idx.mouthPressRight] = THREE.MathUtils.lerp(influences[idx.mouthPressRight], targetMouthPress, 0.32);
+      // Consonants & Plosives (Lips touch cleanly over the open jaw on closures)
+      if (idx.mouthClose !== undefined) influences[idx.mouthClose] = THREE.MathUtils.lerp(influences[idx.mouthClose], targetMouthClose, 0.40);
+      if (idx.mouthPressLeft !== undefined) influences[idx.mouthPressLeft] = THREE.MathUtils.lerp(influences[idx.mouthPressLeft], targetMouthPress, 0.35);
+      if (idx.mouthPressRight !== undefined) influences[idx.mouthPressRight] = THREE.MathUtils.lerp(influences[idx.mouthPressRight], targetMouthPress, 0.35);
       if (idx.mouthRollLower !== undefined) influences[idx.mouthRollLower] = THREE.MathUtils.lerp(influences[idx.mouthRollLower], targetRollLower, 0.28);
       if (idx.mouthShrugLower !== undefined) influences[idx.mouthShrugLower] = THREE.MathUtils.lerp(influences[idx.mouthShrugLower], targetShrugLower, 0.28);
 
-      // Smiles & Emotion Dimples / Frowns
-      if (idx.mouthSmileLeft !== undefined) influences[idx.mouthSmileLeft] = THREE.MathUtils.lerp(influences[idx.mouthSmileLeft], targetSmileL, 0.20);
-      if (idx.mouthSmileRight !== undefined) influences[idx.mouthSmileRight] = THREE.MathUtils.lerp(influences[idx.mouthSmileRight], targetSmileR, 0.20);
+      // Smiles & Emotion Dimples / Frowns (Softened while jaw is wide)
+      if (idx.mouthSmileLeft !== undefined) influences[idx.mouthSmileLeft] = THREE.MathUtils.lerp(influences[idx.mouthSmileLeft], targetSmileL, 0.22);
+      if (idx.mouthSmileRight !== undefined) influences[idx.mouthSmileRight] = THREE.MathUtils.lerp(influences[idx.mouthSmileRight], targetSmileR, 0.22);
       if (idx.mouthDimpleLeft !== undefined) influences[idx.mouthDimpleLeft] = THREE.MathUtils.lerp(influences[idx.mouthDimpleLeft], emotionDimple, 0.20);
       if (idx.mouthDimpleRight !== undefined) influences[idx.mouthDimpleRight] = THREE.MathUtils.lerp(influences[idx.mouthDimpleRight], emotionDimple, 0.20);
       if (idx.mouthFrownLeft !== undefined) influences[idx.mouthFrownLeft] = THREE.MathUtils.lerp(influences[idx.mouthFrownLeft], emotionFrown, 0.20);
