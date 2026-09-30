@@ -63,9 +63,11 @@ function ProceduralModel({
     const headBone = scene.getObjectByName('Head');
     const neckBone = scene.getObjectByName('Neck');
     const neck1Bone = scene.getObjectByName('Neck1');
+    const neck2Bone = scene.getObjectByName('Neck2');
     const spineBone = scene.getObjectByName('Spine');
     const spine1Bone = scene.getObjectByName('Spine1');
     const spine2Bone = scene.getObjectByName('Spine2');
+    const hipsBone = scene.getObjectByName('Hips');
 
     const leftShoulderBone = scene.getObjectByName('LeftShoulder');
     const rightShoulderBone = scene.getObjectByName('RightShoulder');
@@ -127,6 +129,14 @@ function ProceduralModel({
               eyeSquintRight: dict.eyeSquintRight,
               eyeWideLeft: dict.eyeWideLeft,
               eyeWideRight: dict.eyeWideRight,
+              eyeLookDownLeft: dict.eyeLookDownLeft,
+              eyeLookDownRight: dict.eyeLookDownRight,
+              eyeLookInLeft: dict.eyeLookInLeft,
+              eyeLookInRight: dict.eyeLookInRight,
+              eyeLookOutLeft: dict.eyeLookOutLeft,
+              eyeLookOutRight: dict.eyeLookOutRight,
+              eyeLookUpLeft: dict.eyeLookUpLeft,
+              eyeLookUpRight: dict.eyeLookUpRight,
               browInnerUp: dict.browInnerUp,
               browOuterUpLeft: dict.browOuterUpLeft,
               browOuterUpRight: dict.browOuterUpRight,
@@ -146,9 +156,11 @@ function ProceduralModel({
       head: headBone,
       neck: neckBone,
       neck1: neck1Bone,
+      neck2: neck2Bone,
       spine: spineBone,
       spine1: spine1Bone,
       spine2: spine2Bone,
+      hips: hipsBone,
       leftShoulder: leftShoulderBone,
       rightShoulder: rightShoulderBone,
       leftArm: leftArmBone,
@@ -159,88 +171,25 @@ function ProceduralModel({
     };
   }, [scene]);
 
-  // Frame Loop (60 FPS Direct Spectral Formant Analysis & Physics)
+  // Frame Loop (60 FPS Direct Spectral Formant Analysis & Organic Human Physics)
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
 
-    // 1. Organic Idle Breathing & Conversational Posture
-    const breathing = Math.sin(time * 1.4) * 0.012;
-    const slowSway = Math.sin(time * 0.5) * 0.008;
-    const slowTilt = Math.cos(time * 0.35) * 0.006;
+    // ── 1. Organic Human Breathing & Postural Dynamics ──
+    const breathCycle = Math.sin(time * 1.6);
+    const chestRise = breathCycle * 0.028;
+    const slowSwayX = Math.sin(time * 0.35) * 0.018;
+    const slowSwayY = Math.cos(time * 0.28) * 0.022;
 
-    // Emotion-specific body gestures
+    // Emotion states
     const isLaughing = emotion === 'laughing';
     const isSerious = emotion === 'serious';
     const isCurious = emotion === 'curious';
     const isThinking = emotion === 'thinking';
-    const isListening = emotion === 'listening';
+    const isListening = emotion === 'listening' || !isSpeaking;
     const isSmiling = emotion === 'smiling' || isLaughing;
 
-    const laughingVibe = isLaughing ? Math.sin(time * 18.0) * 0.009 : 0;
-    const listeningNod = isListening ? Math.sin(time * 2.2) * 0.024 : 0;
-    const curiousTilt = isCurious ? 0.045 : 0;
-    const thinkingTilt = isThinking ? -0.035 : 0;
-
-    const speechTilt = isSpeaking ? Math.sin(time * 2.8) * 0.016 + slowTilt + curiousTilt + thinkingTilt : (slowTilt + curiousTilt + thinkingTilt);
-    const speechNod = isSpeaking ? Math.cos(time * 2.2) * 0.015 + breathing * 0.5 + laughingVibe : (breathing * 0.3 + listeningNod + laughingVibe);
-    const speechArmGesticulation = isSpeaking ? Math.sin(time * 2.5) * 0.022 : 0;
-    const speechShoulderPulse = isSpeaking ? Math.sin(time * 3.0) * 0.008 + laughingVibe : laughingVibe;
-
-    // Arms & Shoulders Physics
-    const leftArmAngle = 1.31 + breathing * 0.6 + speechArmGesticulation;
-    const rightArmAngle = 1.31 + breathing * 0.6 - speechArmGesticulation * 0.7;
-
-    if (leftArm) {
-      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, leftArmAngle);
-      leftArm.quaternion.copy(BIND_LEFT_ARM_QUAT).multiply(tempQuat);
-    }
-    if (rightArm) {
-      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, rightArmAngle);
-      rightArm.quaternion.copy(BIND_RIGHT_ARM_QUAT).multiply(tempQuat);
-    }
-
-    if (leftForeArm) {
-      const leftElbowBend = -0.12 - (isSpeaking ? Math.cos(time * 2.5) * 0.015 : 0);
-      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, leftElbowBend);
-      leftForeArm.quaternion.copy(BIND_LEFT_FOREARM_QUAT).multiply(tempQuat);
-    }
-    if (rightForeArm) {
-      const rightElbowBend = -0.12 - (isSpeaking ? Math.sin(time * 2.5) * 0.015 : 0);
-      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, rightElbowBend);
-      rightForeArm.quaternion.copy(BIND_RIGHT_FOREARM_QUAT).multiply(tempQuat);
-    }
-
-    if (leftShoulder) {
-      tempQuat.setFromAxisAngle(LOCAL_Z_AXIS, breathing * 0.4 + speechShoulderPulse);
-      leftShoulder.quaternion.copy(BIND_LEFT_SHOULDER_QUAT).multiply(tempQuat);
-    }
-    if (rightShoulder) {
-      tempQuat.setFromAxisAngle(LOCAL_Z_AXIS, -(breathing * 0.4 + speechShoulderPulse));
-      rightShoulder.quaternion.copy(BIND_RIGHT_SHOULDER_QUAT).multiply(tempQuat);
-    }
-
-    // Attentive Head & Neck Alignment
-    if (head) {
-      const targetHeadY = isThinking ? 0.05 : speechTilt;
-      const targetHeadX = isSerious ? -0.04 : speechNod;
-      const targetHeadZ = speechTilt * 0.4;
-      head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetHeadY, 0.08);
-      head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, targetHeadX, 0.08);
-      head.rotation.z = THREE.MathUtils.lerp(head.rotation.z, targetHeadZ, 0.08);
-    }
-
-    if (neck || neck1) {
-      const activeNeck = neck || neck1;
-      activeNeck.rotation.y = THREE.MathUtils.lerp(activeNeck.rotation.y, speechTilt * 0.35, 0.06);
-      activeNeck.rotation.x = THREE.MathUtils.lerp(activeNeck.rotation.x, speechNod * 0.35, 0.06);
-    }
-
-    if (spine2 || spine1 || spine) {
-      const activeSpine = spine2 || spine1 || spine;
-      activeSpine.rotation.x = breathing * 0.35 + (isSerious ? 0.03 : 0);
-      activeSpine.rotation.y = slowSway * 0.3;
-      activeSpine.position.y = breathing * 0.004 + laughingVibe * 0.5;
-    }
+    const laughingShake = isLaughing ? Math.sin(time * 16.0) * 0.015 : 0;
 
     // ── 2. Real-Time Acoustic Spectral Formant Analyzer ──
     const formants = formantSmooth.current;
@@ -280,17 +229,17 @@ function ProceduralModel({
 
     // Blend live audioLevel to ensure 100% mouth-audio synchronization
     if (isSpeaking && audioLevel > 0.02) {
-      const liveBoost = Math.min(1.0, audioLevel * 1.4);
-      currentMid = Math.max(currentMid, liveBoost * 0.75);
-      currentLow = Math.max(currentLow, liveBoost * 0.45);
-      currentHighMid = Math.max(currentHighMid, liveBoost * 0.35);
+      const liveBoost = Math.min(1.0, audioLevel * 1.35);
+      currentMid = Math.max(currentMid, liveBoost * 0.85);
+      currentLow = Math.max(currentLow, liveBoost * 0.55);
+      currentHighMid = Math.max(currentHighMid, liveBoost * 0.45);
       currentVolume = Math.max(currentVolume, liveBoost);
     } else if (isSpeaking && !analyser) {
-      // Natural procedural syllable sequencer if analyser is temporarily initializing
+      // Natural procedural syllable sequencer if analyser is initializing
       formants.syllableTimer -= delta;
       if (formants.syllableTimer <= 0) {
         formants.pseudoPhoneme = Math.floor(Math.random() * 4);
-        formants.syllableTimer = 0.12 + Math.random() * 0.16;
+        formants.syllableTimer = 0.12 + Math.random() * 0.14;
       }
       const baseVol = audioLevel > 0.02 ? audioLevel : 0.45;
       if (formants.pseudoPhoneme === 0) {
@@ -316,44 +265,185 @@ function ProceduralModel({
       currentVolume = 0;
     }
 
-    // Fast Attack (0.65) for crisp phonetic onsets, smooth release (0.35)
-    formants.low = THREE.MathUtils.lerp(formants.low, currentLow, currentLow > formants.low ? 0.65 : 0.4);
-    formants.mid = THREE.MathUtils.lerp(formants.mid, currentMid, currentMid > formants.mid ? 0.65 : 0.4);
-    formants.highMid = THREE.MathUtils.lerp(formants.highMid, currentHighMid, currentHighMid > formants.highMid ? 0.65 : 0.4);
-    formants.treble = THREE.MathUtils.lerp(formants.treble, currentTreble, currentTreble > formants.treble ? 0.65 : 0.4);
-    formants.volume = THREE.MathUtils.lerp(formants.volume, currentVolume, currentVolume > formants.volume ? 0.65 : 0.4);
+    // Fast Attack (0.70) for crisp phonetic onsets, smooth release (0.40)
+    formants.low = THREE.MathUtils.lerp(formants.low, currentLow, currentLow > formants.low ? 0.70 : 0.40);
+    formants.mid = THREE.MathUtils.lerp(formants.mid, currentMid, currentMid > formants.mid ? 0.70 : 0.40);
+    formants.highMid = THREE.MathUtils.lerp(formants.highMid, currentHighMid, currentHighMid > formants.highMid ? 0.70 : 0.40);
+    formants.treble = THREE.MathUtils.lerp(formants.treble, currentTreble, currentTreble > formants.treble ? 0.70 : 0.40);
+    formants.volume = THREE.MathUtils.lerp(formants.volume, currentVolume, currentVolume > formants.volume ? 0.70 : 0.40);
 
-    // ── 3. Exact Viseme Output Calculations based on Acoustic Formants ──
-    const { low, mid, highMid, treble, volume } = formants;
+    // ── 3. Head & Neck Conversational Dynamics ──
+    let targetHeadX = 0;
+    let targetHeadY = 0;
+    let targetHeadZ = 0;
 
-    // A. Natural Jaw Open — Primary, balanced speech driver
-    const speechEnergy = Math.max(audioLevel * 0.95, mid * 0.45 + low * 0.25 + highMid * 0.2);
+    let targetNeckX = 0;
+    let targetNeckY = 0;
+    let targetNeckZ = 0;
+
+    if (isSpeaking) {
+      // Natural conversational cadence: nods on stressed syllables
+      const speechCadenceNod = Math.sin(time * 3.6) * 0.045 + (formants.volume * 0.035) + laughingShake;
+      const speechTurn = Math.sin(time * 1.25) * 0.055 + (isCurious ? 0.04 : 0);
+      const speechTilt = Math.cos(time * 1.65) * 0.040 + (isFemale ? 0.025 : 0);
+
+      targetHeadX = speechCadenceNod * 0.65;
+      targetHeadY = speechTurn * 0.65;
+      targetHeadZ = speechTilt * 0.65;
+
+      targetNeckX = speechCadenceNod * 0.35;
+      targetNeckY = speechTurn * 0.35;
+      targetNeckZ = speechTilt * 0.35;
+    } else if (isListening) {
+      // Active interviewer listening: tilted head + rhythmic understanding nods every 3.4s
+      const listenCycle = time % 3.4;
+      const affirmativeNod = (listenCycle > 0.8 && listenCycle < 1.6) ? Math.sin((listenCycle - 0.8) * Math.PI * 2.5) * 0.045 : 0;
+
+      targetHeadX = 0.032 + affirmativeNod + laughingShake;
+      targetHeadY = Math.sin(time * 0.45) * 0.030;
+      targetHeadZ = (isFemale ? 0.055 : 0.042); // Attentive inquisitive tilt
+
+      targetNeckX = affirmativeNod * 0.4;
+      targetNeckY = targetHeadY * 0.4;
+      targetNeckZ = targetHeadZ * 0.4;
+    } else if (isThinking) {
+      // Looking up/aside pensively
+      targetHeadX = -0.065;
+      targetHeadY = 0.080;
+      targetHeadZ = -0.035;
+
+      targetNeckX = -0.030;
+      targetNeckY = 0.040;
+      targetNeckZ = -0.015;
+    }
+
+    if (head) {
+      head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, targetHeadX, 0.10);
+      head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetHeadY, 0.08);
+      head.rotation.z = THREE.MathUtils.lerp(head.rotation.z, targetHeadZ, 0.08);
+    }
+
+    const activeNeck = neck || neck1;
+    if (activeNeck) {
+      activeNeck.rotation.x = THREE.MathUtils.lerp(activeNeck.rotation.x, targetNeckX, 0.08);
+      activeNeck.rotation.y = THREE.MathUtils.lerp(activeNeck.rotation.y, targetNeckY, 0.07);
+      activeNeck.rotation.z = THREE.MathUtils.lerp(activeNeck.rotation.z, targetNeckZ, 0.07);
+    }
+    if (neck1 && neck1 !== activeNeck) {
+      neck1.rotation.x = THREE.MathUtils.lerp(neck1.rotation.x, targetNeckX * 0.5, 0.08);
+      neck1.rotation.y = THREE.MathUtils.lerp(neck1.rotation.y, targetNeckY * 0.5, 0.07);
+    }
+
+    // ── 4. Torso & Spine Breathing & Posture ──
+    const targetSpineX = -0.015 + chestRise + (isSerious ? 0.035 : 0) + (isListening ? 0.025 : 0);
+    const targetSpineY = slowSwayY;
+    const targetSpineZ = -slowSwayX * 0.5;
+
+    if (spine) {
+      spine.rotation.x = THREE.MathUtils.lerp(spine.rotation.x, targetSpineX, 0.06);
+      spine.rotation.y = THREE.MathUtils.lerp(spine.rotation.y, targetSpineY, 0.05);
+      spine.rotation.z = THREE.MathUtils.lerp(spine.rotation.z, targetSpineZ, 0.05);
+      spine.position.y = THREE.MathUtils.lerp(spine.position.y, breathCycle * 0.006 + laughingShake * 0.4, 0.06);
+    }
+    if (spine1) {
+      spine1.rotation.x = THREE.MathUtils.lerp(spine1.rotation.x, chestRise * 0.8, 0.06);
+    }
+    if (spine2) {
+      spine2.rotation.x = THREE.MathUtils.lerp(spine2.rotation.x, chestRise * 0.9, 0.06);
+    }
+
+    // ── 5. Living Shoulders & Arms Gestures ──
+    const shoulderBreath = breathCycle * 0.025 + (isSpeaking ? Math.sin(time * 3.5) * 0.010 : 0) + laughingShake;
+    if (leftShoulder) {
+      tempQuat.setFromAxisAngle(LOCAL_Z_AXIS, shoulderBreath);
+      leftShoulder.quaternion.copy(BIND_LEFT_SHOULDER_QUAT).multiply(tempQuat);
+    }
+    if (rightShoulder) {
+      tempQuat.setFromAxisAngle(LOCAL_Z_AXIS, -shoulderBreath);
+      rightShoulder.quaternion.copy(BIND_RIGHT_SHOULDER_QUAT).multiply(tempQuat);
+    }
+
+    const armGesticulation = isSpeaking ? (Math.sin(time * 2.4) * 0.035 + formants.mid * 0.025) : 0;
+    const leftArmAngle = 1.31 + chestRise * 0.5 + armGesticulation;
+    const rightArmAngle = 1.31 + chestRise * 0.5 - armGesticulation * 0.7;
+
+    if (leftArm) {
+      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, leftArmAngle);
+      leftArm.quaternion.copy(BIND_LEFT_ARM_QUAT).multiply(tempQuat);
+    }
+    if (rightArm) {
+      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, rightArmAngle);
+      rightArm.quaternion.copy(BIND_RIGHT_ARM_QUAT).multiply(tempQuat);
+    }
+
+    if (leftForeArm) {
+      const leftElbowBend = -0.12 - (isSpeaking ? (Math.cos(time * 2.4) * 0.030 + formants.volume * 0.030) : 0);
+      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, leftElbowBend);
+      leftForeArm.quaternion.copy(BIND_LEFT_FOREARM_QUAT).multiply(tempQuat);
+    }
+    if (rightForeArm) {
+      const rightElbowBend = -0.12 - (isSpeaking ? (Math.sin(time * 2.4) * 0.030 + formants.volume * 0.025) : 0);
+      tempQuat.setFromAxisAngle(LOCAL_X_AXIS, rightElbowBend);
+      rightForeArm.quaternion.copy(BIND_RIGHT_FOREARM_QUAT).multiply(tempQuat);
+    }
+
+    // ── 6. Lifelike Eye Gaze & Micro-Saccades ──
+    const gazeCycle = Math.floor(time / 2.7);
+    const gazeType = gazeCycle % 6;
+    let eyeGazeDown = 0;
+    let eyeGazeIn = 0;
+    let eyeGazeOut = 0;
+
+    if (gazeType === 3) {
+      // Glancing slightly down at interview notes
+      eyeGazeDown = 0.15;
+    } else if (gazeType === 4 && isThinking) {
+      // Glancing slightly away while thinking
+      eyeGazeOut = 0.10;
+    }
+
+    // ── 7. Detailed Phonetic Viseme Synthesizer (Realistic Lip Synchronization) ──
+    const speechEnergy = Math.max(audioLevel * 1.15, formants.volume);
+    // Natural human syllable cadence rhythm (~3.8Hz)
+    const syllableWave = Math.sin(time * 19.0) * 0.5 + 0.5;
+
+    // A. Dynamic Jaw Open (Primary speech driver, following speech energy)
     const targetJawOpen = isSpeaking
-      ? Math.min(0.36, Math.max(0, speechEnergy))
-      : (isCurious ? 0.02 : 0);
+      ? Math.min(0.48, Math.max(0, speechEnergy * 0.52 * (0.68 + syllableWave * 0.32)))
+      : (isCurious ? 0.025 : 0);
 
-    // Keep jaw strictly centered — never dislocate or swing jaw sideways
     const targetJawLeft = 0;
     const targetJawRight = 0;
 
-    // Symmetrical, subtle lip response accompanying jaw (prevents mouth tearing/stretching)
-    const targetLowerDown = isSpeaking ? Math.min(0.06, targetJawOpen * 0.20) : 0;
-    const targetUpperUp = isSpeaking ? Math.min(0.04, targetJawOpen * 0.14) : 0;
+    // B. Natural Lip Openings (Crucial: mouth opening exposes teeth/tongue realistically)
+    const targetLowerDown = isSpeaking ? Math.min(0.34, targetJawOpen * 0.68 + formants.mid * 0.20) : 0;
+    const targetUpperUp = isSpeaking ? Math.min(0.24, targetJawOpen * 0.48 + formants.mid * 0.15) : 0;
 
-    // B. Subtle Vowel Formants (Rounded vowels: OO, U, W)
-    const targetFunnel = isSpeaking ? Math.min(0.08, low * 0.14) : (isCurious ? 0.03 : 0);
-    const targetPucker = isSpeaking ? Math.min(0.06, low * 0.10) : 0;
+    // C. Rounded Vowels: OO / U / W / O / و / ضمة (Mouth pushes forward into a funnel)
+    const targetFunnel = isSpeaking
+      ? Math.min(0.46, formants.low * 0.60 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.45 : 0))
+      : (isCurious ? 0.05 : 0);
+    const targetPucker = isSpeaking
+      ? Math.min(0.38, formants.low * 0.50 + (formants.pseudoPhoneme === 1 ? speechEnergy * 0.35 : 0))
+      : 0;
+    const targetJawForward = targetFunnel * 0.25;
 
-    // C. Front Spread Vowels (EE, IH, AE) — subtle, symmetrical
-    const targetStretch = isSpeaking ? Math.min(0.07, highMid * 0.12) : 0;
+    // D. Front Spread Vowels: EE / IH / AY / ي / كسرة (Mouth stretches horizontally)
+    const targetStretch = isSpeaking
+      ? Math.min(0.44, formants.highMid * 0.55 + (formants.pseudoPhoneme === 2 ? speechEnergy * 0.40 : 0))
+      : 0;
 
-    // D. Sibilants & Plosive Closures
-    const targetShrugLower = 0;
-    const targetRollLower = 0;
-    const targetMouthClose = (isSpeaking && speechEnergy < 0.03) ? 0.02 : 0;
+    // E. Bilabial & Plosive Closures: M / B / P / ب / م (Lips press together briefly between syllables)
+    const isClosingSyllable = isSpeaking && ((speechEnergy > 0.05 && syllableWave < 0.20) || speechEnergy <= 0.035);
+    const targetMouthClose = isClosingSyllable ? 0.40 : 0;
+    const targetMouthPress = isClosingSyllable ? 0.24 : 0;
 
-    // ── 4. Emotion Blendshape Modulation ──
-    let emotionSmile = 0.08; // Friendly, approachable neutral resting smile
+    // F. Fricatives & Sibilants: S / SH / T / Z / F / س / ش / ف
+    const targetRollLower = isSpeaking ? Math.min(0.26, formants.treble * 0.34) : 0;
+    const targetShrugLower = isSpeaking ? Math.min(0.24, formants.treble * 0.30) : 0;
+
+    // ── 8. Emotion Blendshape Modulation ──
+    let emotionSmile = 0.10; // Friendly, professional resting smile
     let emotionDimple = 0;
     let emotionFrown = 0;
     let emotionBrowInner = 0;
@@ -365,49 +455,49 @@ function ProceduralModel({
     let emotionNoseSneer = 0;
 
     if (isLaughing) {
-      emotionSmile = 0.32;
-      emotionDimple = 0.18;
-      emotionCheekSquint = 0.25;
-      emotionEyeSquint = 0.20;
-      emotionBrowInner = 0.10;
+      emotionSmile = 0.35;
+      emotionDimple = 0.20;
+      emotionCheekSquint = 0.28;
+      emotionEyeSquint = 0.22;
+      emotionBrowInner = 0.12;
     } else if (isSmiling) {
-      emotionSmile = 0.24;
-      emotionDimple = 0.10;
-      emotionCheekSquint = 0.14;
-      emotionEyeSquint = 0.10;
-      emotionBrowInner = 0.06;
+      emotionSmile = 0.26;
+      emotionDimple = 0.12;
+      emotionCheekSquint = 0.16;
+      emotionEyeSquint = 0.12;
+      emotionBrowInner = 0.08;
     } else if (isSerious) {
-      emotionSmile = 0.02;
+      emotionSmile = 0.03;
       emotionFrown = 0.08;
       emotionBrowDown = 0.22;
       emotionBrowInner = 0.10;
       emotionEyeSquint = 0.12;
     } else if (isCurious) {
-      emotionSmile = 0.08;
-      emotionBrowOuter = 0.26;
-      emotionBrowInner = 0.22;
-      emotionEyeWide = 0.18;
+      emotionSmile = 0.10;
+      emotionBrowOuter = 0.28;
+      emotionBrowInner = 0.24;
+      emotionEyeWide = 0.20;
     } else if (isThinking) {
-      emotionSmile = 0.05;
-      emotionBrowInner = 0.16;
+      emotionSmile = 0.06;
+      emotionBrowInner = 0.18;
       emotionBrowDown = 0.10;
-      emotionEyeSquint = 0.08;
+      emotionEyeSquint = 0.10;
     } else if (isListening) {
-      emotionSmile = 0.12;
-      emotionBrowInner = 0.06;
+      emotionSmile = 0.14;
+      emotionBrowInner = 0.08;
     }
 
     const targetSmileL = emotionSmile;
     const targetSmileR = emotionSmile;
-    const browAccent = isSpeaking ? (mid * 0.08 + treble * 0.04) : 0;
+    const browAccent = isSpeaking ? (formants.mid * 0.12 + formants.treble * 0.06) : 0;
 
-    // 5. Realistic Eye Blink Scheduler
+    // 9. Realistic Eye Blink Scheduler
     blinkState.current.nextBlink -= delta;
     if (blinkState.current.nextBlink <= 0) {
       blinkState.current.isBlinking = true;
-      blinkState.current.blinkWeight = THREE.MathUtils.lerp(blinkState.current.blinkWeight, 1.0, 0.55);
+      blinkState.current.blinkWeight = THREE.MathUtils.lerp(blinkState.current.blinkWeight, 1.0, 0.60);
       if (blinkState.current.blinkWeight > 0.9) {
-        blinkState.current.nextBlink = 3.0 + Math.random() * 3.5;
+        blinkState.current.nextBlink = 2.8 + Math.random() * 3.2;
         blinkState.current.isBlinking = false;
       }
     } else {
@@ -415,42 +505,42 @@ function ProceduralModel({
     }
     const blinkValue = blinkState.current.blinkWeight;
 
-    // 6. Zero-Allocation Blendshape Application Loop (60 FPS, Symmetrical & Organic)
+    // 10. Zero-Allocation Blendshape Application Loop (60 FPS, Symmetrical & Organic)
     for (let i = 0; i < morphMeshes.length; i++) {
       const { influences, idx } = morphMeshes[i];
 
       // Jaw Mechanics (Smooth, centered, organic)
-      if (idx.jawOpen !== undefined) influences[idx.jawOpen] = THREE.MathUtils.lerp(influences[idx.jawOpen], targetJawOpen, 0.28);
-      if (idx.jawForward !== undefined) influences[idx.jawForward] = THREE.MathUtils.lerp(influences[idx.jawForward], targetFunnel * 0.2, 0.25);
-      if (idx.jawLeft !== undefined) influences[idx.jawLeft] = THREE.MathUtils.lerp(influences[idx.jawLeft], targetJawLeft, 0.3);
-      if (idx.jawRight !== undefined) influences[idx.jawRight] = THREE.MathUtils.lerp(influences[idx.jawRight], targetJawRight, 0.3);
+      if (idx.jawOpen !== undefined) influences[idx.jawOpen] = THREE.MathUtils.lerp(influences[idx.jawOpen], targetJawOpen, 0.35);
+      if (idx.jawForward !== undefined) influences[idx.jawForward] = THREE.MathUtils.lerp(influences[idx.jawForward], targetJawForward, 0.28);
+      if (idx.jawLeft !== undefined) influences[idx.jawLeft] = THREE.MathUtils.lerp(influences[idx.jawLeft], targetJawLeft, 0.35);
+      if (idx.jawRight !== undefined) influences[idx.jawRight] = THREE.MathUtils.lerp(influences[idx.jawRight], targetJawRight, 0.35);
 
-      // Lips Open & Drop (Symmetrical, subtle)
-      if (idx.mouthLowerDownLeft !== undefined) influences[idx.mouthLowerDownLeft] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownLeft], targetLowerDown, 0.28);
-      if (idx.mouthLowerDownRight !== undefined) influences[idx.mouthLowerDownRight] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownRight], targetLowerDown, 0.28);
-      if (idx.mouthUpperUpLeft !== undefined) influences[idx.mouthUpperUpLeft] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpLeft], targetUpperUp, 0.28);
-      if (idx.mouthUpperUpRight !== undefined) influences[idx.mouthUpperUpRight] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpRight], targetUpperUp, 0.28);
+      // Lips Open & Drop (Upper and Lower lips separate naturally with vowels)
+      if (idx.mouthLowerDownLeft !== undefined) influences[idx.mouthLowerDownLeft] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownLeft], targetLowerDown, 0.32);
+      if (idx.mouthLowerDownRight !== undefined) influences[idx.mouthLowerDownRight] = THREE.MathUtils.lerp(influences[idx.mouthLowerDownRight], targetLowerDown, 0.32);
+      if (idx.mouthUpperUpLeft !== undefined) influences[idx.mouthUpperUpLeft] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpLeft], targetUpperUp, 0.32);
+      if (idx.mouthUpperUpRight !== undefined) influences[idx.mouthUpperUpRight] = THREE.MathUtils.lerp(influences[idx.mouthUpperUpRight], targetUpperUp, 0.32);
 
-      // Lip Shaping (Natural and gentle)
-      if (idx.mouthFunnel !== undefined) influences[idx.mouthFunnel] = THREE.MathUtils.lerp(influences[idx.mouthFunnel], targetFunnel, 0.26);
-      if (idx.mouthPucker !== undefined) influences[idx.mouthPucker] = THREE.MathUtils.lerp(influences[idx.mouthPucker], targetPucker, 0.26);
-      if (idx.mouthStretchLeft !== undefined) influences[idx.mouthStretchLeft] = THREE.MathUtils.lerp(influences[idx.mouthStretchLeft], targetStretch, 0.26);
-      if (idx.mouthStretchRight !== undefined) influences[idx.mouthStretchRight] = THREE.MathUtils.lerp(influences[idx.mouthStretchRight], targetStretch, 0.26);
+      // Lip Shaping (Rounded & Spread Vowels)
+      if (idx.mouthFunnel !== undefined) influences[idx.mouthFunnel] = THREE.MathUtils.lerp(influences[idx.mouthFunnel], targetFunnel, 0.30);
+      if (idx.mouthPucker !== undefined) influences[idx.mouthPucker] = THREE.MathUtils.lerp(influences[idx.mouthPucker], targetPucker, 0.30);
+      if (idx.mouthStretchLeft !== undefined) influences[idx.mouthStretchLeft] = THREE.MathUtils.lerp(influences[idx.mouthStretchLeft], targetStretch, 0.30);
+      if (idx.mouthStretchRight !== undefined) influences[idx.mouthStretchRight] = THREE.MathUtils.lerp(influences[idx.mouthStretchRight], targetStretch, 0.30);
 
       // Consonants & Plosives
-      if (idx.mouthClose !== undefined) influences[idx.mouthClose] = THREE.MathUtils.lerp(influences[idx.mouthClose], targetMouthClose, 0.3);
-      if (idx.mouthRollLower !== undefined) influences[idx.mouthRollLower] = THREE.MathUtils.lerp(influences[idx.mouthRollLower], targetRollLower, 0.25);
-      if (idx.mouthShrugLower !== undefined) influences[idx.mouthShrugLower] = THREE.MathUtils.lerp(influences[idx.mouthShrugLower], targetShrugLower, 0.25);
-      if (idx.mouthPressLeft !== undefined) influences[idx.mouthPressLeft] = THREE.MathUtils.lerp(influences[idx.mouthPressLeft], 0, 0.25);
-      if (idx.mouthPressRight !== undefined) influences[idx.mouthPressRight] = THREE.MathUtils.lerp(influences[idx.mouthPressRight], 0, 0.25);
+      if (idx.mouthClose !== undefined) influences[idx.mouthClose] = THREE.MathUtils.lerp(influences[idx.mouthClose], targetMouthClose, 0.38);
+      if (idx.mouthPressLeft !== undefined) influences[idx.mouthPressLeft] = THREE.MathUtils.lerp(influences[idx.mouthPressLeft], targetMouthPress, 0.32);
+      if (idx.mouthPressRight !== undefined) influences[idx.mouthPressRight] = THREE.MathUtils.lerp(influences[idx.mouthPressRight], targetMouthPress, 0.32);
+      if (idx.mouthRollLower !== undefined) influences[idx.mouthRollLower] = THREE.MathUtils.lerp(influences[idx.mouthRollLower], targetRollLower, 0.28);
+      if (idx.mouthShrugLower !== undefined) influences[idx.mouthShrugLower] = THREE.MathUtils.lerp(influences[idx.mouthShrugLower], targetShrugLower, 0.28);
 
       // Smiles & Emotion Dimples / Frowns
-      if (idx.mouthSmileLeft !== undefined) influences[idx.mouthSmileLeft] = THREE.MathUtils.lerp(influences[idx.mouthSmileLeft], targetSmileL, 0.18);
-      if (idx.mouthSmileRight !== undefined) influences[idx.mouthSmileRight] = THREE.MathUtils.lerp(influences[idx.mouthSmileRight], targetSmileR, 0.18);
-      if (idx.mouthDimpleLeft !== undefined) influences[idx.mouthDimpleLeft] = THREE.MathUtils.lerp(influences[idx.mouthDimpleLeft], emotionDimple, 0.18);
-      if (idx.mouthDimpleRight !== undefined) influences[idx.mouthDimpleRight] = THREE.MathUtils.lerp(influences[idx.mouthDimpleRight], emotionDimple, 0.18);
-      if (idx.mouthFrownLeft !== undefined) influences[idx.mouthFrownLeft] = THREE.MathUtils.lerp(influences[idx.mouthFrownLeft], emotionFrown, 0.18);
-      if (idx.mouthFrownRight !== undefined) influences[idx.mouthFrownRight] = THREE.MathUtils.lerp(influences[idx.mouthFrownRight], emotionFrown, 0.18);
+      if (idx.mouthSmileLeft !== undefined) influences[idx.mouthSmileLeft] = THREE.MathUtils.lerp(influences[idx.mouthSmileLeft], targetSmileL, 0.20);
+      if (idx.mouthSmileRight !== undefined) influences[idx.mouthSmileRight] = THREE.MathUtils.lerp(influences[idx.mouthSmileRight], targetSmileR, 0.20);
+      if (idx.mouthDimpleLeft !== undefined) influences[idx.mouthDimpleLeft] = THREE.MathUtils.lerp(influences[idx.mouthDimpleLeft], emotionDimple, 0.20);
+      if (idx.mouthDimpleRight !== undefined) influences[idx.mouthDimpleRight] = THREE.MathUtils.lerp(influences[idx.mouthDimpleRight], emotionDimple, 0.20);
+      if (idx.mouthFrownLeft !== undefined) influences[idx.mouthFrownLeft] = THREE.MathUtils.lerp(influences[idx.mouthFrownLeft], emotionFrown, 0.20);
+      if (idx.mouthFrownRight !== undefined) influences[idx.mouthFrownRight] = THREE.MathUtils.lerp(influences[idx.mouthFrownRight], emotionFrown, 0.20);
 
       // Cheeks & Nose
       if (idx.cheekSquintLeft !== undefined) influences[idx.cheekSquintLeft] = THREE.MathUtils.lerp(influences[idx.cheekSquintLeft], emotionCheekSquint, 0.22);
@@ -466,12 +556,18 @@ function ProceduralModel({
       if (idx.eyeWideLeft !== undefined) influences[idx.eyeWideLeft] = THREE.MathUtils.lerp(influences[idx.eyeWideLeft], emotionEyeWide, 0.2);
       if (idx.eyeWideRight !== undefined) influences[idx.eyeWideRight] = THREE.MathUtils.lerp(influences[idx.eyeWideRight], emotionEyeWide, 0.2);
 
+      // Eye Saccades (Gaze Direction)
+      if (idx.eyeLookDownLeft !== undefined) influences[idx.eyeLookDownLeft] = THREE.MathUtils.lerp(influences[idx.eyeLookDownLeft], eyeGazeDown, 0.15);
+      if (idx.eyeLookDownRight !== undefined) influences[idx.eyeLookDownRight] = THREE.MathUtils.lerp(influences[idx.eyeLookDownRight], eyeGazeDown, 0.15);
+      if (idx.eyeLookOutLeft !== undefined) influences[idx.eyeLookOutLeft] = THREE.MathUtils.lerp(influences[idx.eyeLookOutLeft], eyeGazeOut, 0.15);
+      if (idx.eyeLookInRight !== undefined) influences[idx.eyeLookInRight] = THREE.MathUtils.lerp(influences[idx.eyeLookInRight], eyeGazeOut, 0.15);
+
       // Brows
-      if (idx.browInnerUp !== undefined) influences[idx.browInnerUp] = THREE.MathUtils.lerp(influences[idx.browInnerUp], emotionBrowInner + browAccent, 0.2);
-      if (idx.browOuterUpLeft !== undefined) influences[idx.browOuterUpLeft] = THREE.MathUtils.lerp(influences[idx.browOuterUpLeft], emotionBrowOuter + browAccent * 0.6, 0.2);
-      if (idx.browOuterUpRight !== undefined) influences[idx.browOuterUpRight] = THREE.MathUtils.lerp(influences[idx.browOuterUpRight], emotionBrowOuter + browAccent * 0.6, 0.2);
-      if (idx.browDownLeft !== undefined) influences[idx.browDownLeft] = THREE.MathUtils.lerp(influences[idx.browDownLeft], emotionBrowDown, 0.2);
-      if (idx.browDownRight !== undefined) influences[idx.browDownRight] = THREE.MathUtils.lerp(influences[idx.browDownRight], emotionBrowDown, 0.2);
+      if (idx.browInnerUp !== undefined) influences[idx.browInnerUp] = THREE.MathUtils.lerp(influences[idx.browInnerUp], emotionBrowInner + browAccent, 0.22);
+      if (idx.browOuterUpLeft !== undefined) influences[idx.browOuterUpLeft] = THREE.MathUtils.lerp(influences[idx.browOuterUpLeft], emotionBrowOuter + browAccent * 0.6, 0.22);
+      if (idx.browOuterUpRight !== undefined) influences[idx.browOuterUpRight] = THREE.MathUtils.lerp(influences[idx.browOuterUpRight], emotionBrowOuter + browAccent * 0.6, 0.22);
+      if (idx.browDownLeft !== undefined) influences[idx.browDownLeft] = THREE.MathUtils.lerp(influences[idx.browDownLeft], emotionBrowDown, 0.22);
+      if (idx.browDownRight !== undefined) influences[idx.browDownRight] = THREE.MathUtils.lerp(influences[idx.browDownRight], emotionBrowDown, 0.22);
     }
   });
 
