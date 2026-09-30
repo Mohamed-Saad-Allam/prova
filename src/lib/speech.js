@@ -92,6 +92,26 @@ export function startListening({
 
       rec.onend = () => {
         if (!isExplicitlyStopped && (continuous || isMobileDevice)) {
+          if (typeof document !== 'undefined' && document.hidden) {
+            // Tab is minimized or in background. Wait until user returns to tab!
+            const onVisible = () => {
+              if (document.visibilityState === 'visible') {
+                document.removeEventListener('visibilitychange', onVisible);
+                window.removeEventListener('focus', onVisible);
+                if (!isExplicitlyStopped) {
+                  setTimeout(() => {
+                    if (!isExplicitlyStopped) {
+                      recognitionInstance = initRecognition();
+                    }
+                  }, 120);
+                }
+              }
+            };
+            document.addEventListener('visibilitychange', onVisible);
+            window.addEventListener('focus', onVisible);
+            return;
+          }
+
           // Restart clean instance with a short breather so browser mic handle doesn't conflict
           setTimeout(() => {
             if (!isExplicitlyStopped) {
@@ -549,8 +569,8 @@ export async function speak({ text, lang = 'ar-EG', voice, onStart, onEnd, onErr
             const count = end - start || 1;
             const rms = Math.sqrt(sumSq / count);
             const zcrRate = zcr / count;
-            // Real silence threshold: drops during breaths, pauses, and between words
-            const isSilent = rms < 0.018;
+            // Real silence threshold: drops during true silence and breaths (< 0.005)
+            const isSilent = rms < 0.005;
             return { rms, zcrRate, isSilent, currentTime: t };
           },
         };

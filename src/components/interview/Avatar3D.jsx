@@ -427,80 +427,88 @@ function ProceduralModel({
 
     if (isSpeaking && frame && !frame.isSilent) {
       // ── A. LIVE ACTIVE SOUND (Real Acoustic Energy > Silence Threshold) ──
-      const energy = Math.min(1.0, Math.max(0, (frame.rms - 0.016) * 4.6));
+      // Dynamic energy curve with realistic 0.005 silence threshold
+      const energy = Math.min(1.0, Math.max(0, (frame.rms - 0.005) / 0.038));
       const zcr = frame.zcrRate;
 
-      // Micro-fraction jaw parting (0.015 - 0.035 max)
-      targetJawOpen = Math.min(0.035, energy * 0.035);
+      // Natural conversational jaw opening (0.08 to 0.25 on vowels)
+      targetJawOpen = Math.min(0.25, energy * 0.23);
 
-      if (zcr < 0.09) {
+      if (zcr < 0.12) {
         // 1. OPEN VOWELS (AA / AH / OH / AY / ا / أ / فتحة / ع / هـ)
-        // Deep resonance, low zero-crossings: lips part naturally
-        targetLowerDown = Math.min(0.15, energy * 0.16);
-        targetUpperUp = Math.min(0.07, energy * 0.075);
-      } else if (zcr >= 0.09 && zcr < 0.22) {
+        // Lips part cleanly and naturally
+        targetLowerDown = Math.min(0.18, energy * 0.17);
+        targetUpperUp = Math.min(0.08, energy * 0.07);
+      } else if (zcr >= 0.12 && zcr < 0.26) {
         // 2. ROUNDED VOWELS (OO / U / W / O / و / ضمة)
-        // Formant shift to 300-800Hz: lips round and funnel forward
-        targetFunnel = Math.min(0.20, energy * 0.22);
-        targetPucker = Math.min(0.14, energy * 0.15);
-        targetLowerDown = Math.min(0.07, energy * 0.08);
-        targetUpperUp = Math.min(0.03, energy * 0.04);
-      } else if (zcr >= 0.22 && zcr < 0.38) {
+        // Lips round and funnel forward
+        targetFunnel = Math.min(0.22, energy * 0.21);
+        targetPucker = Math.min(0.15, energy * 0.14);
+        targetLowerDown = Math.min(0.10, energy * 0.09);
+        targetUpperUp = Math.min(0.04, energy * 0.04);
+      } else if (zcr >= 0.26 && zcr < 0.42) {
         // 3. FRONT SPREAD VOWELS (EE / IH / AE / ي / كسرة)
-        // High frequency resonance (2kHz-4kHz): lips widen horizontally
-        targetStretch = Math.min(0.16, energy * 0.18);
-        targetLowerDown = Math.min(0.06, energy * 0.07);
-        targetUpperUp = Math.min(0.03, energy * 0.04);
+        // Lips widen horizontally
+        targetStretch = Math.min(0.18, energy * 0.17);
+        targetLowerDown = Math.min(0.08, energy * 0.08);
+        targetUpperUp = Math.min(0.04, energy * 0.04);
       } else {
         // 4. SIBILANTS & FRICATIVES (S / SH / T / Z / F / TH / س / ش / ف / ز / ت)
-        // Turbulent air (>0.38 ZCR): lips align and close slightly
-        targetMouthClose = Math.min(0.24, energy * 0.26);
-        targetLowerDown = 0.03;
-        targetUpperUp = 0.02;
+        targetMouthClose = Math.min(0.12, energy * 0.12);
+        targetLowerDown = 0.05;
+        targetUpperUp = 0.03;
       }
     } else if (isSpeaking && frame && frame.isSilent) {
       // ── B. BREATHING / PAUSE / SILENCE BETWEEN WORDS ──
-      // When audio drops for breath, comma, or pause, mouth is completely still & closed
+      // Completely still, relaxed natural mouth (NOT pinched shut)
       targetLowerDown = 0;
       targetUpperUp = 0;
       targetFunnel = 0;
       targetPucker = 0;
       targetStretch = 0;
       targetJawOpen = 0;
-      targetMouthClose = 0.12; // Natural resting lip seal
+      targetMouthClose = 0;
     } else if (isSpeaking && !frame) {
-      // ── C. FALLBACK TO FREQUENCY ANALYSER ──
+      // ── C. ROBUST MULTI-SIGNAL FALLBACK (Web Audio Analyser + AudioLevel) ──
       const analyser = window.__prova_speaker_analyser;
+      let vol = 0;
       if (analyser) {
         analyser.getByteFrequencyData(freqDataBuffer);
         let sum = 0;
         for (let k = 2; k < 35; k++) sum += freqDataBuffer[k];
         const avg = sum / 33;
-        const vol = Math.min(1.0, Math.max(0, (avg - 10) / 65));
+        vol = Math.min(1.0, Math.max(0, (avg - 8) / 60));
+      }
+      const effectiveVol = Math.max(vol, audioLevel * 1.35);
 
-        if (vol < 0.04) {
-          // Pause / breath
-          targetMouthClose = 0.12;
-        } else {
-          let lowSum = 0;
-          for (let k = 1; k <= 6; k++) lowSum += freqDataBuffer[k];
-          let highSum = 0;
-          for (let k = 23; k <= 50; k++) highSum += freqDataBuffer[k];
-
-          targetJawOpen = Math.min(0.035, vol * 0.035);
-          if (lowSum > highSum * 1.5) {
-            targetFunnel = Math.min(0.18, vol * 0.20);
-            targetLowerDown = Math.min(0.07, vol * 0.08);
-          } else if (highSum > lowSum * 1.2) {
-            targetStretch = Math.min(0.15, vol * 0.18);
-            targetLowerDown = Math.min(0.06, vol * 0.07);
-          } else {
-            targetLowerDown = Math.min(0.14, vol * 0.15);
-            targetUpperUp = Math.min(0.06, vol * 0.07);
-          }
-        }
+      if (effectiveVol < 0.035) {
+        // Pause / breath
+        targetLowerDown = 0;
+        targetUpperUp = 0;
+        targetFunnel = 0;
+        targetPucker = 0;
+        targetStretch = 0;
+        targetJawOpen = 0;
+        targetMouthClose = 0;
       } else {
-        targetMouthClose = 0.12;
+        let lowSum = 0;
+        let highSum = 0;
+        if (analyser) {
+          for (let k = 1; k <= 6; k++) lowSum += freqDataBuffer[k];
+          for (let k = 23; k <= 50; k++) highSum += freqDataBuffer[k];
+        }
+
+        targetJawOpen = Math.min(0.24, effectiveVol * 0.22);
+        if (lowSum > highSum * 1.35) {
+          targetFunnel = Math.min(0.20, effectiveVol * 0.20);
+          targetLowerDown = Math.min(0.10, effectiveVol * 0.10);
+        } else if (highSum > lowSum * 1.15) {
+          targetStretch = Math.min(0.17, effectiveVol * 0.17);
+          targetLowerDown = Math.min(0.09, effectiveVol * 0.09);
+        } else {
+          targetLowerDown = Math.min(0.16, effectiveVol * 0.15);
+          targetUpperUp = Math.min(0.07, effectiveVol * 0.06);
+        }
       }
     } else {
       // Not speaking -> idle neutral face

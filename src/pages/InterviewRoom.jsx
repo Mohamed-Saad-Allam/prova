@@ -362,6 +362,42 @@ export default function InterviewRoom({ user }) {
     });
   }, [isRtl]);
 
+  // ── Tab Focus & Window Restore Recovery ──
+  // When candidate minimizes/un-minimizes browser or switches tabs, ensure mic & recognition immediately re-activate
+  useEffect(() => {
+    const handleVisibilityRecovery = () => {
+      if (document.visibilityState === 'visible') {
+        if (
+          !isTerminatedRef.current &&
+          !micMutedRef.current &&
+          !isSpeakingRef.current &&
+          turnStateRef.current !== 'thinking' &&
+          turnStateRef.current !== 'ai_speaking'
+        ) {
+          stopListening();
+          setTimeout(() => {
+            if (
+              !isTerminatedRef.current &&
+              !micMutedRef.current &&
+              !isSpeakingRef.current &&
+              turnStateRef.current !== 'thinking' &&
+              turnStateRef.current !== 'ai_speaking'
+            ) {
+              startListeningSession();
+            }
+          }, 150);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityRecovery);
+    window.addEventListener('focus', handleVisibilityRecovery);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityRecovery);
+      window.removeEventListener('focus', handleVisibilityRecovery);
+    };
+  }, [startListeningSession]);
+
   // ── Gemini & Neural Voice Live Conversational Playback ─────────────────────
   const speakAiTurn = useCallback(
     async (text) => {
