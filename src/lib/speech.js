@@ -93,22 +93,8 @@ export function startListening({
       rec.onend = () => {
         if (!isExplicitlyStopped && (continuous || isMobileDevice)) {
           if (typeof document !== 'undefined' && document.hidden) {
-            // Tab is minimized or in background. Wait until user returns to tab!
-            const onVisible = () => {
-              if (document.visibilityState === 'visible') {
-                document.removeEventListener('visibilitychange', onVisible);
-                window.removeEventListener('focus', onVisible);
-                if (!isExplicitlyStopped) {
-                  setTimeout(() => {
-                    if (!isExplicitlyStopped) {
-                      recognitionInstance = initRecognition();
-                    }
-                  }, 120);
-                }
-              }
-            };
-            document.addEventListener('visibilitychange', onVisible);
-            window.addEventListener('focus', onVisible);
+            // Tab is minimized or hidden in background. Do not start mic while backgrounded.
+            // When candidate returns to the window, InterviewRoom will cleanly restart the session.
             return;
           }
 
@@ -117,16 +103,36 @@ export function startListening({
             if (!isExplicitlyStopped) {
               recognitionInstance = initRecognition();
             }
-          }, isMobileDevice ? 120 : 60);
+          }, isMobileDevice ? 150 : 80);
           return;
         }
         onEnd?.();
       };
 
-      rec.start();
+      let startRetries = 0;
+      function safeStart() {
+        if (isExplicitlyStopped) return;
+        try {
+          rec.start();
+        } catch (e) {
+          const msg = e?.message || String(e);
+          if (startRetries < 3 && (msg.includes('already started') || e?.name === 'InvalidStateError')) {
+            startRetries++;
+            try { rec.abort(); } catch (_e) {}
+            setTimeout(() => {
+              if (!isExplicitlyStopped) safeStart();
+            }, 200);
+            return;
+          }
+          console.warn('[Speech] start exception:', e);
+          onError?.(e.message || 'start_failed');
+        }
+      }
+
+      safeStart();
       return rec;
     } catch (e) {
-      console.warn('[Speech] start exception:', e);
+      console.warn('[Speech] init exception:', e);
       onError?.(e.message || 'start_failed');
       return null;
     }
@@ -148,6 +154,14 @@ export function stopListening() {
       recognitionInstance.stop();
     } catch (_e) {}
     recognitionInstance = null;
+  }
+}
+
+export async function resumeMicAudioContext() {
+  if (userMicCtx && userMicCtx.state === 'suspended') {
+    try {
+      await userMicCtx.resume();
+    } catch (_e) {}
   }
 }
 

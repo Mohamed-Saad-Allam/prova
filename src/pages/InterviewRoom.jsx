@@ -32,6 +32,7 @@ import {
   subscribeAudioLevel,
   startUserMicLevel,
   stopUserMicLevel,
+  resumeMicAudioContext,
 } from '../lib/speech';
 import { useInterviewStore } from '../store/interviewStore';
 import AvatarPlayer from '../components/interview/AvatarPlayer';
@@ -366,28 +367,39 @@ export default function InterviewRoom({ user }) {
   // When candidate minimizes/un-minimizes browser or switches tabs, ensure mic & recognition immediately re-activate
   useEffect(() => {
     const handleVisibilityRecovery = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState !== 'visible') return;
+      if (isTerminatedRef.current || micMutedRef.current) return;
+
+      // Resume Web Audio Context if suspended by Chrome
+      resumeMicAudioContext?.();
+
+      // If AI is actively speaking, let it finish naturally
+      if (isSpeakingRef.current || turnStateRef.current === 'ai_speaking') return;
+
+      // Reset any stuck states
+      if (turnStateRef.current === 'thinking' && !isSubmittingRef.current) {
+        setTurnState('listening');
+        turnStateRef.current = 'listening';
+      }
+
+      stopListening();
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      setAutoSendCountdown(0);
+
+      // 250ms breather gives Chrome audio thread enough time to re-activate hardware mic
+      setTimeout(() => {
         if (
           !isTerminatedRef.current &&
           !micMutedRef.current &&
           !isSpeakingRef.current &&
-          turnStateRef.current !== 'thinking' &&
           turnStateRef.current !== 'ai_speaking'
         ) {
-          stopListening();
-          setTimeout(() => {
-            if (
-              !isTerminatedRef.current &&
-              !micMutedRef.current &&
-              !isSpeakingRef.current &&
-              turnStateRef.current !== 'thinking' &&
-              turnStateRef.current !== 'ai_speaking'
-            ) {
-              startListeningSession();
-            }
-          }, 150);
+          setTurnState('listening');
+          turnStateRef.current = 'listening';
+          startListeningSession();
         }
-      }
+      }, 250);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityRecovery);
@@ -522,18 +534,21 @@ export default function InterviewRoom({ user }) {
 
         if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
 
-        isSubmittingRef.current = false;
-        await speakAiTurn(reply || (isRtl ? `نقطة ممتازة يا ${candidateName}. احكي لي كمان عن خبراتك؟` : `Great point ${candidateName}. Tell me more?`));
+        const dynamicFallback = isRtl
+          ? `فهمت وجهة نظرك يا ${candidateName} بخصوص "${text.slice(0, 50)}". احكي لي أكتر عن دورك وتطبيقك العملي فيها؟`
+          : `Understood your point ${candidateName} regarding "${text.slice(0, 50)}". Could you tell me more about your specific role and execution there?`;
+
+        await speakAiTurn(reply || dynamicFallback);
       } catch (err) {
         console.error('[IR] Turn error:', err);
         if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
         isSubmittingRef.current = false;
 
-        const fallbackText = isRtl
-          ? `نقطة ممتازة يا ${candidateName}. احكي لي كمان عن تجاربك السابقة مع الفريق في النقطة دي؟`
-          : `Great point ${candidateName}. Tell me more about your experience on this with your team?`;
+        const dynamicFallback = isRtl
+          ? `فهمت وجهة نظرك يا ${candidateName} بخصوص "${text.slice(0, 50)}". احكي لي أكتر عن دورك وتطبيقك العملي فيها؟`
+          : `Understood your point ${candidateName} regarding "${text.slice(0, 50)}". Could you tell me more about your specific role and execution there?`;
 
-        await speakAiTurn(fallbackText);
+        await speakAiTurn(dynamicFallback);
       } finally {
         isSubmittingRef.current = false;
       }
@@ -557,12 +572,26 @@ export default function InterviewRoom({ user }) {
     }, 200);
   }, [isRtl, setIsSpeaking, startListeningSession]);
 
+  // ── Manual Mic Re-activation ──
+  const forceRestartMic = useCallback(() => {
+    if (isSpeakingRef.current || turnStateRef.current === 'ai_speaking') return;
+    toast(isRtl ? '🎙️ جاري إعادة تنشيط المايك...' : '🎙️ Re-activating microphone...', { duration: 1200 });
+    resumeMicAudioContext?.();
+    stopListening();
+    setTurnState('listening');
+    turnStateRef.current = 'listening';
+    setTimeout(() => {
+      if (!micMutedRef.current) startListeningSession();
+    }, 150);
+  }, [isRtl, startListeningSession]);
+
   // ── Toolbar Actions ───────────────────────────────────────────────────────
   const toggleMic = useCallback(() => {
     if (micMuted) {
       setMicMuted(false);
       micMutedRef.current = false;
       toast.success(isRtl ? 'تم تشغيل المايك' : 'Microphone unmuted', { duration: 1200 });
+      resumeMicAudioContext?.();
       if (!isSpeakingRef.current && turnStateRef.current !== 'thinking') {
         startListeningSession();
       }
@@ -1155,9 +1184,12 @@ export default function InterviewRoom({ user }) {
                   fontWeight: 600,
                   lineHeight: 1.5,
                   zIndex: 35,
-                  pointerEvents: 'none',
+                  pointerEvents: !isAiSpeaking ? 'auto' : 'none',
+                  cursor: !isAiSpeaking ? 'pointer' : 'default',
                   direction: isRtl ? 'rtl' : 'ltr',
                 }}
+                onClick={!isAiSpeaking ? forceRestartMic : undefined}
+                title={!isAiSpeaking ? (isRtl ? 'اضغط لإعادة تنشيط المايك' : 'Click to re-activate mic') : undefined}
               >
                 <span style={{ color: isAiSpeaking ? 'var(--c-coral-light)' : isUserSpeaking ? '#10b981' : '#cbd5e1', fontWeight: 800, marginInlineEnd: 8 }}>
                   {isAiSpeaking ? (isSara ? 'سارة:' : 'أحمد:') : isUserSpeaking ? `${candidateName}:` : ''}

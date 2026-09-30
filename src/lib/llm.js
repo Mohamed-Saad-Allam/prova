@@ -27,7 +27,7 @@ let geminiQuotaBlockedUntil = 0;
 /**
  * Call Groq API (Llama 3.3 70B - Lightning Fast 200ms real conversational response)
  */
-async function callGroq(prompt, systemInstruction = '', timeoutMs = 3000) {
+async function callGroq(prompt, systemInstruction = '', timeoutMs = 3500) {
   const groqKey =
     (typeof localStorage !== 'undefined' && localStorage.getItem('prova_groq_api_key')) ||
     (typeof import.meta !== 'undefined' && (import.meta.env?.GROQ_API_KEY || import.meta.env?.VITE_GROQ_API_KEY)) ||
@@ -35,37 +35,40 @@ async function callGroq(prompt, systemInstruction = '', timeoutMs = 3000) {
 
   if (!groqKey || groqKey.includes('your_')) return null;
 
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 250,
-        temperature: 0.7,
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+  const candidateModels = ['qwen/qwen3.8-27b', 'allam-2-7b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+  for (const modelName of candidateModels) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 250,
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch (_e) {
-    return null;
+      if (!res.ok) continue;
+      const data = await res.json();
+      const txt = data.choices?.[0]?.message?.content?.trim();
+      if (txt && txt.length > 2) return txt;
+    } catch (_e) {}
   }
+  return null;
 }
 
 /**
  * Call Groq API Multi-Turn Chat
  */
-async function callGroqChat(messages, systemInstruction = '', timeoutMs = 3000, maxTokens = 120) {
+async function callGroqChat(messages, systemInstruction = '', timeoutMs = 3500, maxTokens = 120) {
   const groqKey =
     (typeof localStorage !== 'undefined' && localStorage.getItem('prova_groq_api_key')) ||
     (typeof import.meta !== 'undefined' && (import.meta.env?.GROQ_API_KEY || import.meta.env?.VITE_GROQ_API_KEY)) ||
@@ -82,27 +85,32 @@ async function callGroqChat(messages, systemInstruction = '', timeoutMs = 3000, 
       })),
     ];
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: formatted,
-        max_tokens: maxTokens,
-        temperature: 0.65,
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    const candidateModels = ['qwen/qwen3.8-27b', 'allam-2-7b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+    for (const modelName of candidateModels) {
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: formatted,
+            max_tokens: maxTokens,
+            temperature: 0.65,
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch (_e) {
-    return null;
-  }
+        if (!res.ok) continue;
+        const data = await res.json();
+        const txt = data.choices?.[0]?.message?.content?.trim();
+        if (txt && txt.length > 2) return txt;
+      } catch (_e) {}
+    }
+  } catch (_e) {}
+  return null;
 }
 
 /**
@@ -111,7 +119,6 @@ async function callGroqChat(messages, systemInstruction = '', timeoutMs = 3000, 
 async function callGeminiChat(contents, systemInstruction = '', timeoutMs = 4500, maxOutputTokens = 120) {
   const activeAI = getActiveGeminiAI();
   if (!activeAI) return null;
-  if (Date.now() < geminiQuotaBlockedUntil) return null;
 
   const candidateModels = [
     'gemini-3.5-flash-lite',
@@ -140,12 +147,8 @@ async function callGeminiChat(contents, systemInstruction = '', timeoutMs = 4500
       const text = await Promise.race([genPromise, timeoutPromise]);
       if (text && text.length > 2) return text;
     } catch (err) {
-      const errMsg = err?.message || String(err);
-      const status = err?.status || err?.httpStatus;
-      if (status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-        geminiQuotaBlockedUntil = Date.now() + 5 * 60 * 1000;
-        return null;
-      }
+      // Continue to next model immediately on any failure
+      continue;
     }
   }
 
@@ -158,18 +161,15 @@ async function callGeminiChat(contents, systemInstruction = '', timeoutMs = 4500
 async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxOutputTokens = 1000, responseJson = false) {
   const activeAI = getActiveGeminiAI();
   if (!activeAI) return null;
-  if (Date.now() < geminiQuotaBlockedUntil) return null;
 
-  // Real verified Gemini models in priority order (fastest/cheapest first)
+  // Real verified Gemini models in priority order
   const candidateModels = [
     'gemini-3.5-flash-lite',      // Ultra-fast ~1s latency
-    'gemini-flash-lite-latest',   // Fast 2.5s fallback
-    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest',   // Fast fallback
     'gemini-flash-latest',
   ];
 
   for (const modelName of candidateModels) {
-    // Attempt each model up to 2 times to handle transient 503 overload errors
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const genConfig = {
@@ -196,30 +196,21 @@ async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxO
         const text = await Promise.race([genPromise, timeoutPromise]);
         if (text && text.length > 2) return text;
 
-        // Empty response — no point retrying same model, move to next
         break;
       } catch (err) {
         const errMsg = err?.message || String(err);
         const status = err?.status || err?.httpStatus;
 
-        // 429 / quota exceeded — circuit break for 5 minutes
-        if (status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-          geminiQuotaBlockedUntil = Date.now() + 5 * 60 * 1000;
-          return null;
-        }
-
-        // 503 / overloaded — wait briefly then retry this model once, then try next
+        // 503 / overloaded — wait briefly then retry this model once
         if (status === 503 || errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('UNAVAILABLE')) {
           if (attempt === 0) {
-            // Short backoff before retry: 800ms
-            await new Promise((r) => setTimeout(r, 800));
-            continue; // retry same model
+            await new Promise((r) => setTimeout(r, 600));
+            continue;
           }
-          // Second attempt also failed, move to next model
           break;
         }
 
-        // Other errors — move to next model immediately
+        // On 429 or other errors, immediately try next model without global lockout
         break;
       }
     }
@@ -793,34 +784,21 @@ ${formattedCv.trim()}
     return text.trim();
   }
 
-  // ── Smart Dynamic Fallback ──
+  // ── Smart Dynamic Fallback (Safe, never hallucinates fragments like "ions") ──
   if (hasCv) {
-    let specificMention = '';
+    let jobTitleVal = '';
     try {
-      if (cvContext.trim().startsWith('{')) {
-        const parsed = JSON.parse(cvContext.trim());
-        if (parsed.careerHistory?.[0]?.company) {
-          specificMention = `خبرتك في مؤسسة ${parsed.careerHistory[0].company} كـ ${parsed.careerHistory[0].title || 'متخصص في مجالك'}`;
-        } else if (parsed.projectsCertifications?.[0]?.title) {
-          specificMention = `مشروعك في ${parsed.projectsCertifications[0].title}`;
-        } else if (parsed.technicalSkills) {
-          specificMention = `خبرتك في ${parsed.technicalSkills.split(',')[0].trim()}`;
-        }
+      const titleMatch = formattedCv.match(/(?:المسمى الوظيفي|المسمى|الوظيفة|المهنة|التخصص|Job Title|Title|Role)[:：]\s*([^\n\r]+)/i);
+      if (titleMatch && titleMatch[1]) {
+        jobTitleVal = titleMatch[1].trim();
       }
     } catch (_e) {}
 
-    if (!specificMention) {
-      const prjMatch = formattedCv.match(/(?:المشاريع|مشروع|project|projects|إنجازات)[:：\s-]*([^\n\r,.]+)/i);
-      const companyMatch = formattedCv.match(/(?:شركة|مؤسسة|مستشفى|مدرسة|مكتب|عيادة|company|at)[:：\s-]*([^\n\r,.]+)/i);
-      const techMatch = formattedCv.match(/(?:المهارات|skills|technologies)[:：\s-]*([^\n\r.]+)/i);
-      specificMention = prjMatch?.[1]?.trim() || companyMatch?.[1]?.trim() || techMatch?.[1]?.split(',')?.[0]?.trim();
+    if (jobTitleVal && !jobTitleVal.includes('المجال التخصصي')) {
+      return `أهلاً بك يا ${candidateName}! أنا ${actualInterviewerName}، ${roleName}. راجعت سيرتك الذاتية ومتحمس جداً لمقابلتنا اليوم في تخصص ${jobTitleVal}. حابب نبدأ بأقوى مشروع أو دور وظيفي قمت بيه في مجالك، احكي لي عنه وعن دورك فيه وأهم إنجاز حققته؟`;
     }
 
-    if (specificMention) {
-      return `أهلاً بك يا ${candidateName}! أنا ${actualInterviewerName}، ${roleName}. راجعت سيرتك الذاتية بالتفصيل ولفت نظري جداً ${specificMention}. احكي لي بالتفصيل إيه كان دورك فيه وأهم إنجاز حققته؟`;
-    }
-
-    return `أهلاً بك يا ${candidateName}! أنا ${actualInterviewerName}، ${roleName}. اطلعت على سيرتك الذاتية ومتحمس جداً لمقابلتنا اليوم. حابب نبدأ بأقوى مشروع أو دور وظيفي قمت بيه في مجالك، احكي لي عنه وعن دورك فيه؟`;
+    return `أهلاً بك يا ${candidateName}! أنا ${actualInterviewerName}، ${roleName}. راجعت سيرتك الذاتية ومتحمس جداً لمقابلتنا اليوم. حابب نبدأ بأقوى مشروع أو دور وظيفي قمت بيه في مجالك، احكي لي عنه وعن دورك فيه وأهم إنجاز حققته؟`;
   }
 
   // Natural fallback when NO CV exists
@@ -964,10 +942,17 @@ ${cvVal || 'لم يرفع المرشح سيرة ذاتية بعد. اعتمد ع
   }
 
   // 5. Intelligent Dynamic Fallback (Never robotic, strictly field-relevant)
-  if (jobTitleVal && !jobTitleVal.includes('المجال التخصصي')) {
-    return `تمام جداً يا ${candidateName}. حابب أتعمق معاك في شغلك في ${jobTitleVal}: إيه أكبر تحدي تقني أو عملي قابلك في مشروع حقيقي، وإزاي وصلت لحله؟`;
+  // 5. Intelligent Dynamic Response (Directly anchored on candidate's words, zero static canned questions)
+  if (lastUserMsg && lastUserMsg.length > 3) {
+    const cleaned = lastUserMsg.replace(/^(تمام|أهلاً|اهلا|شكراً|اوك|ماشى|بص|يعني|والله)[,،\s]*/i, '').trim();
+    const snippet = cleaned.length > 60 ? cleaned.slice(0, 60) + '...' : cleaned;
+    if (jobTitleVal && !jobTitleVal.includes('المجال التخصصي')) {
+      return `نقطة ممتازة ومثيرة للاهتمام يا ${candidateName} بخصوص "${snippet}". من واقع دورك في ${jobTitleVal}، إيه كان التحدي الأكبر اللي واجهكم في الجزئية دي وازاي تغلبتوا عليه؟`;
+    }
+    return `فهمت وجهة نظرك جداً يا ${candidateName} في كلامك عن "${snippet}". وضح لي أكتر إزاي طبقت ده عملياً والتأثير المباشر اللي حققته في المشروع؟`;
   }
-  return `نقطة مهمة وممتازة يا ${candidateName}. احكي لي بالتفصيل عن أقوى مشروع نفذته مؤخراً، إيه كانت أصعب مشكلة واجهتكم وإزاي اتعاملت معاها؟`;
+
+  return `سامعك كويس يا ${candidateName} ومتابع معاك باهتمام، كمل كلامك بالتفصيل عن تجربتك والتقنيات اللي اشتغلت بيها.`;
 }
 
 /**
