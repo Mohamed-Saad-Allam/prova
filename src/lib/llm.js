@@ -63,6 +63,96 @@ async function callGroq(prompt, systemInstruction = '', timeoutMs = 3000) {
 }
 
 /**
+ * Call Groq API Multi-Turn Chat
+ */
+async function callGroqChat(messages, systemInstruction = '', timeoutMs = 3000, maxTokens = 120) {
+  const groqKey =
+    (typeof localStorage !== 'undefined' && localStorage.getItem('prova_groq_api_key')) ||
+    (typeof import.meta !== 'undefined' && (import.meta.env?.GROQ_API_KEY || import.meta.env?.VITE_GROQ_API_KEY)) ||
+    (typeof process !== 'undefined' && (process.env?.GROQ_API_KEY || process.env?.VITE_GROQ_API_KEY));
+
+  if (!groqKey || groqKey.includes('your_')) return null;
+
+  try {
+    const formatted = [
+      ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+      ...messages.map((m) => ({
+        role: m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
+        content: typeof m.parts?.[0]?.text === 'string' ? m.parts[0].text : (m.content || ''),
+      })),
+    ];
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: formatted,
+        max_tokens: maxTokens,
+        temperature: 0.65,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+/**
+ * Call Gemini API Multi-Turn Chat (Native structured turn memory)
+ */
+async function callGeminiChat(contents, systemInstruction = '', timeoutMs = 4500, maxOutputTokens = 120) {
+  const activeAI = getActiveGeminiAI();
+  if (!activeAI) return null;
+  if (Date.now() < geminiQuotaBlockedUntil) return null;
+
+  const candidateModels = [
+    'gemini-3.5-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+  ];
+
+  for (const modelName of candidateModels) {
+    try {
+      const model = activeAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemInstruction || undefined,
+        generationConfig: {
+          maxOutputTokens,
+          temperature: 0.65,
+        },
+      });
+
+      const genPromise = model.generateContent({ contents }).then((res) => {
+        const txt = res.response?.text?.()?.trim();
+        return txt || null;
+      });
+
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
+      const text = await Promise.race([genPromise, timeoutPromise]);
+      if (text && text.length > 2) return text;
+    } catch (err) {
+      const errMsg = err?.message || String(err);
+      const status = err?.status || err?.httpStatus;
+      if (status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        geminiQuotaBlockedUntil = Date.now() + 5 * 60 * 1000;
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Call Gemini with multi-model fallback, configurable timeout & quota circuit breaker
  */
 async function callGemini(prompt, systemInstruction = '', timeoutMs = 8000, maxOutputTokens = 1000, responseJson = false) {
@@ -755,10 +845,10 @@ export async function liveInterviewChat({
     (m) => m.role === 'assistant' || (m.role === 'user' && conversationHistory.length > 1)
   );
 
-  // ── 1. Populate Contextual Placeholders ─────────────────────────────────────
+  // 1. Context & Specialization Detection from CV and Conversation
   const formattedCv = formatCvContext(cvContext);
   const hasCv = formattedCv && formattedCv.trim().length > 50 && !formattedCv.includes('لا توجد سيرة ذاتية إضافية');
-  const cvVal = hasCv ? formattedCv.trim() : 'لم يقدم المرشح سيرة ذاتية بعد، أو بدأ بالتعريف عن نفسه شفهياً. اعتمد كلياً على ما قاله المرشح في الحوار.';
+  let cvVal = hasCv ? formattedCv.trim() : '';
 
   let jobTitleVal = '';
   if (hasCv) {
@@ -767,75 +857,101 @@ export async function liveInterviewChat({
       jobTitleVal = titleMatch[1].trim();
     }
   }
+
+  // Scan conversation history for candidate stating their field
+  const allUserText = (conversationHistory || [])
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content || '')
+    .join(' ');
+
   if (!jobTitleVal) {
-    jobTitleVal = 'المجال والتخصص الذي يعمل به المرشح';
-  }
-
-  const jobDescVal = `وظيفة ${jobTitleVal} متقدمة تركز على الكفاءة المهنية، حل المشكلات بمرونة، وحسن التواصل والتنظيم في بيئة العمل.`;
-
-  const userMessages = (conversationHistory || []).filter((m) => m.role === 'user');
-  const userTurns = userMessages.length;
-  let interviewStageVal = 'مرحلة الحوار المفتوح والتعمق في الخبرات والأدوار العملية';
-  if (userTurns >= 8) {
-    interviewStageVal = 'مرحلة الختام واستفسارات وأسئلة المرشح عن المؤسسة والخطوات القادمة';
-  } else if (userTurns >= 5) {
-    interviewStageVal = 'مرحلة استكشاف مهارات التعاون في الفريق وأسلوب العمل والتطوير';
+    if (/front\s*end|فرونت|رياكت|react|vue|angular/i.test(allUserText)) {
+      jobTitleVal = 'Frontend Developer (مطور واجهات أمامية)';
+    } else if (/back\s*end|باك\s*إند|نود|node|python|django|laravel|php/i.test(allUserText)) {
+      jobTitleVal = 'Backend Developer (مطور باك إند وخوادم)';
+    } else if (/full\s*stack|فول\s*ستاك|mern/i.test(allUserText)) {
+      jobTitleVal = 'Full Stack Developer (مطور شامل)';
+    } else if (/mobile|flutter|react\s*native|أندرويد|ios|موبايل/i.test(allUserText)) {
+      jobTitleVal = 'Mobile App Developer (مطور تطبيقات هاتف)';
+    } else if (/ui\s*\/\s*ux|ui|ux|مصمم|تصميم|figma/i.test(allUserText)) {
+      jobTitleVal = 'UI/UX Designer (مصمم تجربة وواجهة مستخدم)';
+    } else if (/data|بيانات|تحليل|ai|machine\s*learning|ذكاء/i.test(allUserText)) {
+      jobTitleVal = 'Data & AI Specialist (متخصص بيانات وذكاء اصطناعي)';
+    } else {
+      jobTitleVal = 'المجال التخصصي والمهني للمرشح';
+    }
   }
 
   const lastUserMsg = [...(conversationHistory || [])].reverse().find((m) => m.role === 'user')?.content?.trim() || '';
-  const priorHistory = (conversationHistory || []).slice(0, -1);
-  const conversationHistoryVal = priorHistory.length > 0
-    ? priorHistory.map((m) => `${m.role === 'user' ? `المرشح (${candidateName})` : actualInterviewerName}: ${m.content}`).join('\n\n')
-    : 'المقابلة بدأت للتو.';
 
-  const candidateAnswerVal = lastUserMsg || 'المرشح جاهز للمتابعة.';
+  // 2. High-Caliber System Instruction (Real Professional Human Interviewer)
+  const systemInstruction = `
+أنت "${actualInterviewerName}"، ${isFemale ? 'مديرة' : 'مدير'} توظيف تقني ومهني أول وذكي جداً في منصة Prova، تجري مقابلة عمل حوارية تفاعلية حقيقية 100% عبر Zoom مع المرشح (${candidateName}).
 
-  // ── 2. Adaptive Open Interview Prompt Template ─────────────────────────────
-  const promptTemplate = `
-أنت "${actualInterviewerName}"، ${isFemale ? 'مديرة' : 'مدير'} توظيف ذكي، مرن، وودود، يجري مقابلة عمل حوارية تفاعلية ومفتوحة 100% عبر Zoom مع المرشح (${candidateName}) لوظيفة ({{JOB_TITLE}}).
+تخصص ومجال المرشح المستهدف:
+${jobTitleVal}
 
-==================================================
-قواعد الحوار التفاعلي المرن والمفتوح:
-==================================================
-1. استمع بتركيز واستيعاب حقيقي لما قاله المرشح في آخر رسالة، وتفاعل معه بشكل مباشر ومنطقي وإنساني تماماً قبل طرح أي سؤال جديد.
-2. المقابلة ليست امتحاناً روتينياً ولا قائمة أسئلة جاهزة ولا مساراً إجبارياً! الحوار ينبثق تلقائياً ومرناً من كلام المرشح.
-3. إذا قال المرشح مثلاً "معنديش تحديات" أو "مواجهتش مشاكل" أو "المشروع كان تمام ومافيهوش صعوبات":
-   - احترم كلامه بالكامل! لا تكرر السؤال عن التحديات، ولا تقل له "فهمت رؤيتك في جزئية معنديش تحديات طب لو طبقنا وظهرت مشكلة..."!
-   - تفاعل بذكاء ومرونة، مثلاً: "جميل جداً، أحياناً وضوح الرؤية والتنظيم المسبق بيخلي الشغل يمر بسلاسة ومن غير أزمات! قولي بقى إيه اللي ساعدك تحافظ على السلاسة دي وتتجنب اللخبطة؟" أو اسأله عن جانب آخر استمتع به.
-4. إذا لم تكن هناك سيرة ذاتية مرفوعة، أو قام المرشح بتعريف نفسه ومجاله في إجابته:
-   - اعتبر ما قاله عن نفسه هو مصدر معلوماتك الأساسي، وابنِ كل أسئلتك التالية على تخصصه ومجاله الذي ذكره للتو.
-5. تحدث بلهجة مصرية مهنية راقية وطبيعية وواثقة مثل مديري التوظيف في المقابلات الحية عبر Zoom.
-6. اجعل الرد مركّزاً وسريعاً وفورياً للنطق الصوتي: جملة واحدة للتعقيب الذكي + سؤال متابعة واحد فقط (ممنوع الإطالة، الإجمالي لا يتعدى 35 كلمة لضمان سرعة الصوت الفورية).
-7. ممنوع الإيموجي أو نجوم الماركداون أو التحيات المتكررة بعد بدء المقابلة.
+سياق وخلفية السيرة الذاتية:
+${cvVal || 'لم يرفع المرشح سيرة ذاتية بعد. اعتمد على ما يذكره المرشح عن نفسه ومجاله في الحوار.'}
 
-========================
-بيانات المقابلة:
-========================
-مجال الوظيفة: {{JOB_TITLE}}
-سياق السيرة الذاتية:
-{{CV}}
-
-سياق الحوار السابق:
-{{CONVERSATION_HISTORY}}
-
-آخر ما قاله المرشح الآن:
-"{{CANDIDATE_ANSWER}}"
+قواعد المحاور البشري الحقيقي:
+1. التفاعل المباشر أولاً: استمع بتركيز فائق لما قاله المرشح في آخر رسالة، وتفاعل معه بشكل شخصي ومنطقي تماماً، ثم ابنِ سؤالك التالي عليها مباشرة. الحوار يدور 100% حول المرشح وخبراته.
+2. أسئلة تخصصية واقعية في صلب مجاله (${jobTitleVal}):
+   - اطرح عليه أشهر وأقوى الأسئلة والمواقف التقنية والعملية التي تتكرر دائماً في مقابلات العمل الحقيقية لهذا التخصص (مثلاً لو فرونت إند: تعمق في State Management، مشكلات الـ Re-rendering و Performance، دورة حياة الـ Components، التعامل مع الـ APIs والـ Caching، معمارية الكود، أو التعامل مع الأخطاء غير المتوقعة).
+   - اسأله عن تجاربه العملية وقراراته الهندسية في مشاريعه: "إيه اللي خلاك تختار التقنية دي بالذات؟"، "إزاي بتضمن كفاءة الأداء لما الداتا تكبر؟"، "احكيلي عن سيناريو صعب قابلك وإزاي حليته؟".
+3. المرونة التامة ومنع السلوك الآلي (Zero Bot Behavior):
+   - إياك أن تتصرف كبوت مبرمج يكرر كلاماً محفوظاً أو قوالب معلبة!
+   - إذا أجاب باختصار، تحدّاه بلطف في سيناريو تقني عملي واقعي.
+   - إذا ذكر تقنية أو أداة معينة، التقطها واسأله عن تفاصيل تطبيقها الحقيقي.
+4. الأسلوب واللهجة:
+   - تحدث بلهجة مصرية مهنية راقية وطبيعية وواثقة مثل كبار مديري التوظيف في المقابلات الحية (مثل: "ممتاز جداً"، "طب قولي بقى"، "إيه رأيك لو..."، "إزاي بتتعامل مع...").
+   - ردودك مركزة وسريعة للنطق الصوتي الفوري (تعقيب ذكي في جملة واحدة + سؤال تخصصي واحد، بطول بين 20 إلى 40 كلمة فقط).
+5. ممنوع الإيموجي أو نجوم الماركداون أو التحيات المتكررة بعد بدء المقابلة.
 `.trim();
 
-  const prompt = promptTemplate
-    .replace('{{CV}}', cvVal)
-    .replace('{{JOB_TITLE}}', jobTitleVal)
-    .replace('{{JOB_DESCRIPTION}}', jobDescVal)
-    .replace('{{INTERVIEW_STAGE}}', interviewStageVal)
-    .replace('{{CONVERSATION_HISTORY}}', conversationHistoryVal)
-    .replace('{{CANDIDATE_ANSWER}}', candidateAnswerVal);
+  // 3. Build Multi-Turn Conversation Memory Natively
+  const contents = [];
+  const historyTurns = conversationHistory || [];
 
-  // 1. Try Groq first if key exists (200ms ultra-fast intelligence)
-  let aiText = await callGroq(prompt, '', 3000);
+  for (let i = 0; i < historyTurns.length; i++) {
+    const turn = historyTurns[i];
+    const text = (turn.content || '').trim();
+    if (!text) continue;
 
-  // 2. Try Gemini with fast timeout and focused token limit (100 tokens ~ 400ms generation)
+    const role = (turn.role === 'user') ? 'user' : 'model';
+
+    // Merge consecutive identical roles if any
+    if (contents.length > 0 && contents[contents.length - 1].role === role) {
+      contents[contents.length - 1].parts[0].text += '\n' + text;
+    } else {
+      contents.push({
+        role,
+        parts: [{ text }],
+      });
+    }
+  }
+
+  // Ensure first turn starts with 'user'
+  if (contents.length > 0 && contents[0].role === 'model') {
+    contents.unshift({
+      role: 'user',
+      parts: [{ text: `مرحباً، أنا المرشح ${candidateName} وجاهز لبدء المقابلة في مجال ${jobTitleVal}.` }],
+    });
+  }
+
+  // Ensure last turn ends with user's last message
+  if (contents.length === 0 || contents[contents.length - 1].role !== 'user') {
+    contents.push({
+      role: 'user',
+      parts: [{ text: lastUserMsg || `أنا جاهز للمتابعة في تخصص ${jobTitleVal}.` }],
+    });
+  }
+
+  // 4. Multi-Turn Execution: Groq Chat First, Gemini Chat Second
+  let aiText = await callGroqChat(contents, systemInstruction, 3000, 120);
+
   if (!aiText) {
-    aiText = await callGemini(prompt, '', 4500, 100);
+    aiText = await callGeminiChat(contents, systemInstruction, 4500, 120);
   }
 
   if (aiText && aiText.length > 2) {
@@ -847,40 +963,11 @@ export async function liveInterviewChat({
     return aiText;
   }
 
-  // ── Smart Context-Aware Dynamic Fallback (Universal for ANY field) ──────────
-  const lowerMsg = lastUserMsg.toLowerCase();
-
-  // A. Handling "No challenges / No problems" flexibly
-  if (/(معنديش|مفيش|مافيش|مواجهتش|مشوفتش|مفيش اي|مافيش اي)\s*(تحديات|مشاكل|عقبات|صعوبات|أزمات)/i.test(lowerMsg) ||
-      /(كل حاجة تمام|كله تمام|الشغل كان سالك|مكانش فيه مشاكل|مفيش تحدي)/i.test(lowerMsg)) {
-    return `عظيم جداً يا ${candidateName}! إن الشغل يفضل ماشي بسلاسة ومن غير تعقيدات ده في حد ذاته نجاح وتنظيم ممتاز. قولي بقى إيه اللي ساعدك تخلي الأمور تمشي بالسهولة دي وتضمن خروج النتيجة بأفضل شكل؟`;
+  // 5. Intelligent Dynamic Fallback (Never robotic, strictly field-relevant)
+  if (jobTitleVal && !jobTitleVal.includes('المجال التخصصي')) {
+    return `تمام جداً يا ${candidateName}. حابب أتعمق معاك في شغلك في ${jobTitleVal}: إيه أكبر تحدي تقني أو عملي قابلك في مشروع حقيقي، وإزاي وصلت لحله؟`;
   }
-
-  // B. Candidate introducing themselves (if no CV or initial intro)
-  if (/(اسمي|أنا|انا|خريج|شغال|مهندس|طبيب|محاسب|مطور|مسوق|بشتغل|خبرتي|تخصصي)/i.test(lowerMsg) && userTurns <= 2) {
-    return `أهلاً بيك يا ${candidateName} وسعيد جداً بالتعرف على خلفيتك! حابب أتعمق معاك في أقوى مشروع أو دور وظيفي اشتغلت عليه، احكيلي إيه كان دورك فيه بالظبط؟`;
-  }
-
-  // C. Years of experience detected
-  if (
-    /(ست|سبع|خمس|أربع|تلات|ثلاث|عشر|\d+)\s*(سنين|سنوات|سنة)/i.test(lowerMsg) ||
-    /(سنة|سنتين|سنين|سنوات)\s*خبرة/i.test(lowerMsg)
-  ) {
-    return `ما شاء الله، سنين خبرة قوية ومحترمة! قولي بقى خلال الفترة دي، إيه أقوى إنجاز أو عمل كنت فخور جداً بالنتيجة بتاعته؟`;
-  }
-
-  // D. Candidate inquiry about work environment or off-topic questions
-  if (/(بيئة العمل|الشركة|المرتب|المواعيد|طبيعة الشغل|اسأل|عندي سؤال|سؤال)/i.test(lowerMsg)) {
-    return `أكيد هنجاوب على كل استفساراتك عن المؤسسة في نهاية المقابلة، بس خلينا دلوقتي نركز في تقييم الجانب التخصصي والخبرات اللي اشتغلت عليها. احكي لي بالتفصيل عن أهم دور قمت بيه؟`;
-  }
-
-  // E. Audio / connection check
-  if (/(^|\s)(سامعني|الو|ألو|سامع|معايا)($|\s)/i.test(lowerMsg)) {
-    return `معاك يا ${candidateName} وسامعك بكل وضوح! اتفضل كمل فكرتك.`;
-  }
-
-  // F. Flexible, Natural Follow-up Question (Zero Canned BS)
-  return `نقطة جميلة ومهمة يا ${candidateName}. طب انطلاقاً من اللي قولته ده، إيه أكتر جانب في شغلك بتحب تركز عليه عشان تطلع بأفضل جودة ممكنة؟`;
+  return `نقطة مهمة وممتازة يا ${candidateName}. احكي لي بالتفصيل عن أقوى مشروع نفذته مؤخراً، إيه كانت أصعب مشكلة واجهتكم وإزاي اتعاملت معاها؟`;
 }
 
 /**
