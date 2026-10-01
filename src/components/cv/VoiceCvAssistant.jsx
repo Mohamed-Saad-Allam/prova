@@ -367,6 +367,7 @@ export default function VoiceCvAssistant({
     },
   ]);
   const [inputVal, setInputVal] = useState('');
+  const [interimSpeech, setInterimSpeech] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const chatScrollRef = useRef(null);
@@ -375,12 +376,13 @@ export default function VoiceCvAssistant({
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [messages, inputVal]);
+  }, [messages, inputVal, interimSpeech]);
 
   const toggleRecording = () => {
     if (isRecording) {
       stopListening();
       setIsRecording(false);
+      setInterimSpeech('');
       toast.success(isRtl ? 'تم إيقاف التسجيل، يمكنك مراجعة النص والضغط على إرسال' : 'Recording stopped. You can edit and send.');
     } else {
       if (!isSpeechRecognitionSupported) {
@@ -388,21 +390,22 @@ export default function VoiceCvAssistant({
         return;
       }
       setIsRecording(true);
+      setInterimSpeech('');
       startListening({
         lang: isRtl ? 'ar-EG' : 'en-US',
         continuous: true,
-        onPartial: (liveTranscript) => {
-          setInputVal(liveTranscript);
-        },
-        onResult: (finalTranscript) => {
-          setInputVal(finalTranscript);
+        onTranscriptUpdate: ({ text }) => {
+          setInputVal(text);
+          setInterimSpeech(text);
         },
         onError: (err) => {
           console.warn('Voice error:', err);
           setIsRecording(false);
+          setInterimSpeech('');
         },
         onEnd: () => {
           setIsRecording(false);
+          setInterimSpeech('');
         },
       });
     }
@@ -412,6 +415,7 @@ export default function VoiceCvAssistant({
     if (isRecording) {
       stopListening();
       setIsRecording(false);
+      setInterimSpeech('');
     }
 
     const text = (textToSend || inputVal).trim();
