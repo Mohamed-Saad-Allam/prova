@@ -15,6 +15,7 @@ import InterviewRoom from './pages/InterviewRoom';
 import Report       from './pages/Report';
 import Settings     from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
+import AtsScore     from './pages/AtsScore';
 
 import { useLocation } from 'react-router-dom';
 import logoImg from './assets/logo.png';
@@ -390,6 +391,14 @@ export default function App() {
         <Route path="/cv-editor" element={
           <Protected user={user}>
             <CvEditor user={user} />
+          </Protected>
+        } />
+
+        <Route path="/ats-score" element={
+          <Protected user={user}>
+            <CvGate user={user}>
+              <AtsScore user={user} />
+            </CvGate>
           </Protected>
         } />
 

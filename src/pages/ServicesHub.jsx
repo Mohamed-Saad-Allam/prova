@@ -203,6 +203,21 @@ export default function ServicesHub({ user }) {
       actionText: isRtl ? 'تعديل السيرة الذاتية' : 'Edit Resume',
     },
     {
+      id: 'ats-score',
+      icon: <FontAwesomeIcon icon={faBullseye} style={{ fontSize: '1.4rem' }} />,
+      tagIcon: faWandMagicSparkles,
+      tagText: isRtl ? 'ذكاء دلالي NLP' : 'NLP Embeddings',
+      title: isRtl ? 'فحص توافق ATS' : 'ATS Score Match',
+      desc: isRtl
+        ? 'تحليل تطابق سيرتك الذاتية مع أي وصف وظيفي باستخدام المتجهات الدلالية (Cosine Similarity) وكشف فجوات المهارات.'
+        : 'Measure semantic similarity between your CV and job postings using vector embeddings and gap analysis.',
+      color: 'var(--c-coral-dark)',
+      bg: 'rgba(232, 130, 90, 0.12)',
+      borderColor: 'rgba(232, 130, 90, 0.35)',
+      path: '/ats-score',
+      actionText: isRtl ? 'فحص التوافق الآن' : 'Check ATS Match',
+    },
+    {
       id: 'reports',
       icon: <FontAwesomeIcon icon={faChartSimple} style={{ fontSize: '1.4rem' }} />,
       tagIcon: faChartPie,
@@ -459,14 +474,14 @@ export default function ServicesHub({ user }) {
               </h2>
             </div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              {isRtl ? '3 خطوات واضحة لاحتراف المقابلات' : '3 clear steps to interview mastery'}
+              {isRtl ? '4 خطوات متكاملة لاحتراف التوظيف' : '4 integrated steps to career mastery'}
             </span>
           </div>
 
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '1rem',
             }}
           >
@@ -495,20 +510,58 @@ export default function ServicesHub({ user }) {
                 </span>
               </div>
               <h4 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                {isRtl ? 'إعداد وفحص السيرة الذاتية' : 'Resume & ATS Setup'}
+                {isRtl ? 'إعداد السيرة الذاتية' : 'Resume Setup'}
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
                 {isRtl
-                  ? 'يقرأ الذكاء الاصطناعي بياناتك وخبراتك لتوجيه أسئلة مخصصة لمجالك وتخصصك.'
-                  : 'AI analyzes your skills to tailor realistic questions for your exact domain.'}
+                  ? 'بناء سيرتك وتحديث خبراتك ومشاريعك التقنية بدقة.'
+                  : 'Build your CV and keep skills and experiences updated.'}
               </p>
               <div style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--c-coral)' }}>
-                <span>{cvExists ? (isRtl ? 'مراجعة وتعديل الـ CV' : 'Edit Resume') : (isRtl ? 'إنشاء السيرة الذاتية الآن' : 'Create Resume Now')}</span>
+                <span>{cvExists ? (isRtl ? 'مراجعة وتعديل الـ CV' : 'Edit Resume') : (isRtl ? 'إنشاء السيرة الذاتية' : 'Create Resume')}</span>
                 <FontAwesomeIcon icon={forwardArrow} style={{ fontSize: '0.75rem' }} />
               </div>
             </div>
 
-            {/* Step 2: Live AI Mock Interview */}
+            {/* Step 2: ATS Semantic Match Check */}
+            <div
+              onClick={() => navigate('/ats-score')}
+              style={{
+                padding: '1.15rem',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid rgba(232, 130, 90, 0.25)',
+                background: 'rgba(232, 130, 90, 0.05)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.65rem',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--c-coral-dark)' }}>
+                  {isRtl ? 'الخطوة 2' : 'Step 2'}
+                </span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--c-coral-dark)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <FontAwesomeIcon icon={faBullseye} />
+                  <span>{isRtl ? 'تضمين دلالي' : 'Embeddings'}</span>
+                </span>
+              </div>
+              <h4 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                {isRtl ? 'فحص توافق ATS بالذكاء الدلالي' : 'ATS Semantic Match'}
+              </h4>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                {isRtl
+                  ? 'قياس التشابه الدلالي (Cosine Sim) مع الوصف الوظيفي وكشف المهارات الناقصة.'
+                  : 'Measure semantic vector similarity against job postings & identify gaps.'}
+              </p>
+              <div style={{ marginTop: 'auto', paddingTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--c-coral-dark)' }}>
+                <span>{isRtl ? 'فحص التوافق الآن' : 'Check Match'}</span>
+                <FontAwesomeIcon icon={forwardArrow} style={{ fontSize: '0.75rem' }} />
+              </div>
+            </div>
+
+            {/* Step 3: Live AI Mock Interview */}
             <div
               onClick={() => setShowInterviewerModal(true)}
               style={{
@@ -525,7 +578,7 @@ export default function ServicesHub({ user }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--c-coral-dark)' }}>
-                  {isRtl ? 'الخطوة 2 (الأساسية)' : 'Step 2 (Core)'}
+                  {isRtl ? 'الخطوة 3 (الأساسية)' : 'Step 3 (Core)'}
                 </span>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--c-coral)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <FontAwesomeIcon icon={faBolt} />
@@ -533,7 +586,7 @@ export default function ServicesHub({ user }) {
                 </span>
               </div>
               <h4 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                {isRtl ? 'خوض المقابلة الصوتية التفاعلية' : 'Live Voice AI Simulation'}
+                {isRtl ? 'المقابلة الصوتية التفاعلية' : 'Live Voice Simulation'}
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
                 {isRtl
@@ -545,8 +598,7 @@ export default function ServicesHub({ user }) {
                 <FontAwesomeIcon icon={forwardArrow} style={{ fontSize: '0.75rem' }} />
               </div>
             </div>
-
-            {/* Step 3: Actionable Analytics */}
+            {/* Step 4: Actionable Analytics */}
             <div
               onClick={() => navigate('/reports')}
               style={{
@@ -563,7 +615,7 @@ export default function ServicesHub({ user }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                  {isRtl ? 'الخطوة 3' : 'Step 3'}
+                  {isRtl ? 'الخطوة 4' : 'Step 4'}
                 </span>
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <FontAwesomeIcon icon={faTrophy} />

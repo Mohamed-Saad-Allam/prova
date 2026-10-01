@@ -145,6 +145,9 @@ export default function Header({ user }) {
               <Link to="/services" className="nav-link" style={{ fontWeight: 700, color: 'var(--c-coral)' }}>
                 {isRtl ? 'مركز الخدمات' : 'Services Hub'}
               </Link>
+              <Link to="/ats-score" className="nav-link">
+                {isRtl ? 'فحص ATS الدلالي' : 'ATS Score'}
+              </Link>
               <Link to="/cv-editor" className="nav-link">
                 {isRtl ? 'محرر الـ CV' : 'CV Editor'}
               </Link>
@@ -275,6 +278,9 @@ export default function Header({ user }) {
             <>
               <Link to="/services" className="nav-link" onClick={() => setMenuOpen(false)} style={{ fontWeight: 700, color: 'var(--c-coral)' }}>
                 {isRtl ? 'مركز الخدمات' : 'Services Hub'}
+              </Link>
+              <Link to="/ats-score" className="nav-link" onClick={() => setMenuOpen(false)}>
+                {isRtl ? 'فحص توافق ATS' : 'ATS Score Match'}
               </Link>
               <Link to="/cv-editor" className="nav-link" onClick={() => setMenuOpen(false)}>
                 {isRtl ? 'محرر السيرة الذاتية' : 'CV Editor'}

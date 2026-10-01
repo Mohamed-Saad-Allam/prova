@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { synthesizeSpeech } from './api/text-to-speech.js'
@@ -101,18 +101,60 @@ function ttsDevServerPlugin() {
           return
         }
 
+        if (req.url && req.url.startsWith('/api/ats-score')) {
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-key')
+
+          if (req.method === 'OPTIONS') {
+            res.statusCode = 200
+            res.end()
+            return
+          }
+
+          try {
+            let bodyData = ''
+            for await (const chunk of req) {
+              bodyData += chunk
+            }
+            const body = JSON.parse(bodyData || '{}')
+            const customApiKey = req.headers?.['x-gemini-key'] || body.customApiKey
+            const { calculateAtsScore } = await import('./api/ats-score.js')
+            const result = await calculateAtsScore({
+              cv_text: body.cv_text,
+              job_description: body.job_description,
+              cv_id: body.cv_id,
+              lang: body.lang || 'ar',
+              customApiKey,
+            })
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(result))
+          } catch (err) {
+            console.error('Vite ats-score error:', err)
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: err.message }))
+          }
+          return
+        }
+
         next()
       })
     },
   }
 }
 
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    ttsDevServerPlugin(),
-  ],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      ttsDevServerPlugin(),
+    ],
   server: {
     watch: {
       ignored: ['**/*.mp4', '**/*.mkv', '**/*.mov', '**/*.webm', '**/*.glb', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.pdf'],
@@ -143,5 +185,6 @@ export default defineConfig({
       },
     },
   },
-})
+  };
+});
 

@@ -89,6 +89,8 @@
     "startInterviewDesc": "Mock interview with an AI avatar",
     "editCv": "Edit Your CV",
     "editCvDesc": "Update and improve your current CV",
+    "atsScore": "ATS Semantic Match Score",
+    "atsScoreDesc": "Embedding-based semantic similarity with job description and gap analysis",
     "viewReports": "My Reports",
     "viewReportsDesc": "Review past interview results",
     "settings": "Settings",
